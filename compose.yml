@@ -1,0 +1,28 @@
+services:
+  # Node.js service (use with: docker compose up htn-26-challenge --build)
+  htn26-challenge:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: htn-26-challenge-image
+    container_name: htn-26-challenge-container
+    environment:
+      NODE_ENV: production
+      PORT: "3000"
+    ports:
+      - "3000:3000"
+    restart: unless-stopped
+
+  # Bun service (use with: docker compose up htn-26-challenge-with-bun --build)
+  htn26-challenge-with-bun:
+    build:
+      context: .
+      dockerfile: Dockerfile.bun
+    image: htn-26-challenge-bun-image
+    container_name: htn-26-challenge-bun-container
+    environment:
+      NODE_ENV: production
+      PORT: "3000"
+    ports:
+      - "3000:3000"
+    restart: unless-stopped
