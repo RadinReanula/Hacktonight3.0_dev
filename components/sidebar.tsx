@@ -110,7 +110,7 @@ export default function Sidebar() {
       <div className="sidebar-top">
         {/* Logo */}
         <div className="logo-wrapper">
-          <img src="/logo.png" alt="logo" className="logo-img" />
+          <img src="/loginlogo.png" alt="logo" className="logo-img" />
           <h1 className="brand-name">NOVA BANK</h1>
         </div>
 
