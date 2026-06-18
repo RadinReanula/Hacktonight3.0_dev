@@ -1,65 +1,363 @@
+'use client'
+
+import { useState } from 'react'
 import Image from 'next/image'
 
+type Errors = Partial<{
+  amount: string
+  accountNumber: string
+  accountName: string
+  bank: string
+}>
+
 export default function Home() {
+  const [amount, setAmount] = useState('')
+  const [accountNumber, setAccountNumber] = useState('')
+  const [accountName, setAccountName] = useState('')
+  const [bank, setBank] = useState('')
+  const [description, setDescription] = useState('')
+  const [errors, setErrors] = useState<Errors>({})
+  const [step, setStep] = useState<'form' | 'confirm' | 'success' | 'failure'>(
+    'form'
+  )
+  const [confirmation, setConfirmation] = useState<string | null>(null)
+
+  function validate() {
+    const e: Errors = {}
+    if (!amount) e.amount = 'Amount is required'
+    else if (Number(amount) <= 0 || isNaN(Number(amount)))
+      e.amount = 'Enter a valid positive amount'
+
+    if (!accountNumber) e.accountNumber = 'Account number is required'
+    else if (!/^\d{6,}$/.test(accountNumber))
+      e.accountNumber = 'Enter a valid account number'
+
+    if (!accountName) e.accountName = 'Account name is required'
+
+    if (!bank) e.bank = 'Select a bank'
+
+    setErrors(e)
+    return Object.keys(e).length === 0
+  }
+
+  function handleNext(e: React.FormEvent) {
+    e.preventDefault()
+    if (validate()) {
+      // show confirmation step first
+      setStep('confirm')
+    }
+  }
+
+  function handleTransfer(e: React.FormEvent) {
+    e.preventDefault()
+    // simulate transfer completion and show success page
+    const conf = String(Math.floor(10000000 + Math.random() * 89999999))
+    setConfirmation(conf)
+    setStep('success' as any)
+  }
+
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{' '}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{' '}
-            or the{' '}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{' '}
-            center.
-          </p>
-        </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
+    <div className="min-h-screen bg-bg-light font-geist p-0">
+      <div className="flex min-h-screen">
+        <aside className="w-64 bg-sidebar-purple text-white flex flex-col justify-between p-8">
+          <div>
+            <div className="flex items-center gap-4 mb-12">
+              <div className="rounded-full bg-white p-3 w-16 h-16 flex items-center justify-center">
+                <span className="text-sidebar-purple font-extrabold text-lg">
+                  N
+                </span>
+              </div>
+              <div className="text-3xl font-extrabold tracking-wide">
+                NOVA BANK
+              </div>
+            </div>
+            <nav className="flex flex-col gap-6 text-sm opacity-90">
+              <a className="sidebar-item">DASHBOARD</a>
+              <a className="sidebar-item">ACCOUNTS</a>
+              <a className="sidebar-item active">BANK TRANSFER</a>
+              <a className="sidebar-item">PAY BILLS</a>
+              <a className="sidebar-item">SMART SPEND</a>
+              <a className="sidebar-item">E-STATEMENT</a>
+            </nav>
+          </div>
+          <div className="flex gap-4 items-center">
+            <button className="icon-btn" aria-label="settings">
+              <img src="/settings.png" alt="settings" className="w-5 h-5" />
+            </button>
+            <button className="icon-btn" aria-label="help">
+              <img src="/help-icon.png" alt="help" className="w-5 h-5" />
+            </button>
+          </div>
+        </aside>
+
+        <main className="flex-1 p-12">
+          <div className="flex items-center justify-between mb-6">
+            <h2 className="text-2xl font-semibold">Bank Transfer</h2>
+            <div className="flex items-center gap-3">
+              <button className="topbar-icon" aria-label="search">
+                <img src="/search.png" alt="search" />
+              </button>
+              <button className="topbar-icon" aria-label="notifications">
+                <img src="/notification.png" alt="notifications" />
+              </button>
+              <div className="w-12 h-12 rounded-full overflow-hidden border-2 border-gray-200">
+                <img
+                  src="/avatar.png"
+                  alt="avatar"
+                  className="w-full h-full object-cover bg-white"
+                />
+              </div>
+            </div>
+          </div>
+          {step === 'form' ? (
+            <form onSubmit={handleNext} className="transfer-card p-8">
+              <div className="grid grid-cols-12 gap-y-6 gap-x-8 items-center">
+                <label className="col-span-3 text-gray-700">Amount :</label>
+                <div className="col-span-9">
+                  <input
+                    aria-label="amount"
+                    value={amount}
+                    onChange={(e) => setAmount(e.target.value)}
+                    className="underline-input"
+                    placeholder=""
+                  />
+                  {errors.amount && (
+                    <div className="text-sm text-red-600 mt-1">
+                      {errors.amount}
+                    </div>
+                  )}
+                </div>
+
+                <label className="col-span-3 text-gray-700">
+                  Account Number :
+                </label>
+                <div className="col-span-9">
+                  <input
+                    value={accountNumber}
+                    onChange={(e) => setAccountNumber(e.target.value)}
+                    className="underline-input"
+                  />
+                  {errors.accountNumber && (
+                    <div className="text-sm text-red-600 mt-1">
+                      {errors.accountNumber}
+                    </div>
+                  )}
+                </div>
+
+                <label className="col-span-3 text-gray-700">
+                  Account Name :
+                </label>
+                <div className="col-span-9">
+                  <input
+                    value={accountName}
+                    onChange={(e) => setAccountName(e.target.value)}
+                    className="underline-input"
+                  />
+                  {errors.accountName && (
+                    <div className="text-sm text-red-600 mt-1">
+                      {errors.accountName}
+                    </div>
+                  )}
+                </div>
+
+                <label className="col-span-3 text-gray-700">
+                  Select Bank :
+                </label>
+                <div className="col-span-9">
+                  <select
+                    value={bank}
+                    onChange={(e) => setBank(e.target.value)}
+                    className="underline-input bg-transparent"
+                  >
+                    <option value="">Choose bank</option>
+                    <option>First National</option>
+                    <option>Global Trust</option>
+                    <option>Union Bank</option>
+                  </select>
+                  {errors.bank && (
+                    <div className="text-sm text-red-600 mt-1">
+                      {errors.bank}
+                    </div>
+                  )}
+                </div>
+
+                <label className="col-span-3 text-gray-700">
+                  Description :
+                </label>
+                <div className="col-span-9">
+                  <textarea
+                    value={description}
+                    onChange={(e) => setDescription(e.target.value)}
+                    rows={4}
+                    className="description-box"
+                  />
+                </div>
+              </div>
+
+              <div className="flex justify-center mt-10">
+                <button type="submit" className="next-btn">
+                  NEXT
+                </button>
+              </div>
+            </form>
+          ) : step === 'confirm' ? (
+            <div className="transfer-card p-8">
+              <h3 className="text-center text-2xl font-semibold mb-6">
+                Confirm Transfer
+              </h3>
+              <div className="bg-white rounded-lg p-6 shadow-lg max-w-xl mx-auto text-center">
+                <p className="mb-4">
+                  Confirm your transfer of <strong>Rs. {amount || '0'}</strong>{' '}
+                  to <strong>{accountName || 'recipient'}</strong>
+                </p>
+                <p className="text-sm text-gray-600 mb-6">
+                  Additional fee of Rs.50 will be charged.
+                </p>
+                <div className="mb-6">
+                  <img
+                    src="/transfer-illustration.png"
+                    alt="illustration"
+                    className="mx-auto"
+                  />
+                </div>
+                <div className="flex justify-center gap-4">
+                  <button
+                    onClick={() => setStep('failure')}
+                    className="next-btn"
+                    aria-label="back"
+                  >
+                    BACK
+                  </button>
+                  <button
+                    onClick={handleTransfer}
+                    className="next-btn transfer-btn"
+                  >
+                    TRANSFER
+                  </button>
+                </div>
+              </div>
+            </div>
+          ) : step === 'success' ? (
+            // success page
+            <div className="transfer-card p-8">
+              <div className="relative">
+                <div className="success-check inside-check">
+                  <svg
+                    viewBox="0 0 120 120"
+                    width="100"
+                    height="100"
+                    xmlns="http://www.w3.org/2000/svg"
+                  >
+                    <defs>
+                      <radialGradient id="g" cx="50%" cy="50%">
+                        <stop offset="0%" stopColor="#28a745" />
+                        <stop offset="100%" stopColor="#138a3e" />
+                      </radialGradient>
+                    </defs>
+                    <circle cx="60" cy="60" r="50" fill="#dff7e7" />
+                    <circle cx="60" cy="60" r="40" fill="#10a654" />
+                    <path
+                      d="M38 62 L54 78 L82 42"
+                      stroke="#fff"
+                      strokeWidth="8"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      fill="none"
+                    />
+                  </svg>
+                </div>
+
+                <h3 className="text-center text-2xl font-semibold mb-4">
+                  Transfer Successful!
+                </h3>
+                <p className="text-center text-sm text-gray-500 mb-10">
+                  Confirmation number : {confirmation}
+                </p>
+
+                <div className="flex justify-center">
+                  <button
+                    onClick={() => {
+                      // go back to home (reset form)
+                      setAmount('')
+                      setAccountNumber('')
+                      setAccountName('')
+                      setBank('')
+                      setDescription('')
+                      setErrors({})
+                      setConfirmation(null)
+                      setStep('form')
+                    }}
+                    className="transfer-btn success-btn"
+                  >
+                    <span className="mr-3">‹</span> BACK TO HOME
+                  </button>
+                </div>
+              </div>
+            </div>
+          ) : (
+            // failure page
+            <div className="transfer-card p-8">
+              <div className="relative">
+                <div className="success-check inside-check">
+                  <svg
+                    viewBox="0 0 120 120"
+                    width="220"
+                    height="220"
+                    xmlns="http://www.w3.org/2000/svg"
+                  >
+                    <circle cx="60" cy="60" r="50" fill="#ffdede" />
+                    <circle cx="60" cy="60" r="40" fill="#ffb6b6" />
+                    <path
+                      d="M60 30 L93 86 L27 86 Z"
+                      fill="#ff4d4f"
+                      stroke="#fff"
+                      strokeWidth="4"
+                      strokeLinejoin="round"
+                    />
+                    <text
+                      x="60"
+                      y="78"
+                      textAnchor="middle"
+                      fontSize="36"
+                      fill="#fff"
+                      fontWeight="700"
+                    >
+                      !
+                    </text>
+                  </svg>
+                </div>
+
+                <h3 className="text-center text-2xl font-semibold mb-4">
+                  Transaction Failed!
+                </h3>
+                <p className="text-center text-sm text-gray-500 mb-6">
+                  Insufficient Balance
+                  <br />
+                  Current Balance is: Rs.500
+                </p>
+
+                <div className="flex justify-center">
+                  <button
+                    onClick={() => {
+                      setAmount('')
+                      setAccountNumber('')
+                      setAccountName('')
+                      setBank('')
+                      setDescription('')
+                      setErrors({})
+                      setConfirmation(null)
+                      setStep('form')
+                    }}
+                    className="transfer-btn success-btn"
+                  >
+                    <span className="mr-3">‹</span> BACK TO HOME
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+        </main>
+      </div>
     </div>
   )
 }
