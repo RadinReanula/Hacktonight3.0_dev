@@ -15,7 +15,8 @@ const PUBLIC_API = [
   '/api/auth/logout',
   '/api/auth/verify-email',
   '/api/auth/resend-verification',
-  '/api/health'
+  '/api/health',
+  '/api/assistant'
 ]
 
 function isPublicApi(pathname: string) {

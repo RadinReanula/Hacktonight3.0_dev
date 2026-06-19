@@ -4,6 +4,7 @@ import { useQueryClient } from '@tanstack/react-query'
 import { Loader2, LogOut } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { useState } from 'react'
+import { useResetChat } from '@/components/assistant/chat-context'
 import { Button } from '@/components/ui/button'
 import { logoutRequest } from '@/lib/api/auth'
 import { cn } from '@/lib/utils'
@@ -21,6 +22,7 @@ export function LogoutButton({
 }: LogoutButtonProps) {
   const router = useRouter()
   const queryClient = useQueryClient()
+  const resetChat = useResetChat()
   const [loading, setLoading] = useState(false)
 
   async function handleLogout() {
@@ -31,6 +33,7 @@ export function LogoutButton({
     } catch {
       // Redirect even if the request fails — session may already be cleared.
     } finally {
+      resetChat()
       queryClient.clear()
       router.replace('/login')
       router.refresh()

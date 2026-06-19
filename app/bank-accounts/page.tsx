@@ -214,23 +214,37 @@ export default function BankAccountsPage() {
                         type="button"
                         variant="ghost"
                         size="icon"
-                        aria-label={`Edit ${account.accountName}`}
+                        aria-label={`Edit nickname for ${account.accountName}`}
                         onClick={() => openEdit(account)}
                       >
                         <Pencil className="size-4" />
                       </Button>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon"
-                        aria-label={`Delete ${account.accountName}`}
-                        onClick={() => {
-                          setDeleteError(null)
-                          setDeleteTarget(account)
-                        }}
+                      <span
+                        title={
+                          account.balance !== 0
+                            ? 'Transfer or withdraw the balance before closing this account.'
+                            : undefined
+                        }
+                        className="inline-flex"
                       >
-                        <Trash2 className="size-4 text-destructive" />
-                      </Button>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          disabled={account.balance !== 0}
+                          aria-label={
+                            account.balance !== 0
+                              ? `Cannot delete ${account.accountName} — balance must be zero`
+                              : `Delete ${account.accountName}`
+                          }
+                          onClick={() => {
+                            setDeleteError(null)
+                            setDeleteTarget(account)
+                          }}
+                        >
+                          <Trash2 className="size-4 text-destructive" />
+                        </Button>
+                      </span>
                     </div>
                   </div>
                 </CardHeader>
@@ -332,9 +346,11 @@ export default function BankAccountsPage() {
       {view === 'edit' && editingAccount ? (
         <Card className="mx-auto max-w-lg">
           <CardHeader>
-            <CardTitle>Rename account</CardTitle>
+            <CardTitle>Edit nickname</CardTitle>
             <p className="text-muted-foreground text-sm">
-              {maskAccountNumber(editingAccount.accountNumber)}
+              {maskAccountNumber(editingAccount.accountNumber)} — this only
+              changes how the account appears to you, not the account number or
+              type.
             </p>
           </CardHeader>
           <CardContent>
@@ -344,7 +360,7 @@ export default function BankAccountsPage() {
               noValidate
             >
               <Field>
-                <FieldLabel htmlFor="editAccountName">Account name</FieldLabel>
+                <FieldLabel htmlFor="editAccountName">Nickname</FieldLabel>
                 <Input
                   id="editAccountName"
                   aria-invalid={Boolean(editForm.formState.errors.accountName)}

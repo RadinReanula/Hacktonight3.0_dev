@@ -14,7 +14,8 @@ import {
   Zap
 } from 'lucide-react'
 import Link from 'next/link'
-import { useState } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
+import { Suspense, useEffect, useState } from 'react'
 import { Controller, useForm } from 'react-hook-form'
 import { z } from 'zod'
 import { AppShell } from '@/components/shell/app-shell'
@@ -37,6 +38,7 @@ import {
   SelectTrigger,
   SelectValue
 } from '@/components/ui/select'
+import { Skeleton } from '@/components/ui/skeleton'
 import { fetchAccounts } from '@/lib/api/accounts'
 import { type Biller, fetchBillers } from '@/lib/api/billers'
 import { postPayBill } from '@/lib/api/pay-bills'
@@ -51,7 +53,12 @@ const payBillWithPinSchema = payBillFormSchema.extend({
 
 type PayBillFormValues = z.infer<typeof payBillWithPinSchema>
 
-type Step = 'select' | 'form' | 'result'
+type PaymentResult = {
+  variant: 'success' | 'error'
+  title: string
+  description?: string
+  transactionId?: number
+}
 
 const categoryIcons: Record<string, LucideIcon> = {
   Electricity: Zap,
@@ -79,15 +86,28 @@ function formatCurrency(value: number) {
   }).format(value)
 }
 
-export default function PayBillsPage() {
-  const [step, setStep] = useState<Step>('select')
+function PayBillsLoading() {
+  return (
+    <AppShell>
+      <PageHeader title="Pay Bills" />
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+        <Skeleton className="h-36 rounded-xl" />
+        <Skeleton className="h-36 rounded-xl" />
+        <Skeleton className="h-36 rounded-xl" />
+        <Skeleton className="h-36 rounded-xl" />
+      </div>
+    </AppShell>
+  )
+}
+
+function PayBillsContent() {
+  const router = useRouter()
+  const searchParams = useSearchParams()
+  const billerSlug = searchParams.get('biller')
+  const status = searchParams.get('status')
+
   const [selectedBiller, setSelectedBiller] = useState<Biller | null>(null)
-  const [result, setResult] = useState<{
-    variant: 'success' | 'error'
-    title: string
-    description?: string
-    transactionId?: number
-  } | null>(null)
+  const [result, setResult] = useState<PaymentResult | null>(null)
 
   const billersQuery = useQuery({
     queryKey: ['billers'],
@@ -122,7 +142,7 @@ export default function PayBillsPage() {
         description: `Your payment of ${formatCurrency(data.transaction.amount)} was completed.`,
         transactionId: data.transaction.id
       })
-      setStep('result')
+      router.replace('/pay-bills?status=success')
     },
     onError: (error) => {
       setResult({
@@ -133,20 +153,54 @@ export default function PayBillsPage() {
             ? error.message
             : 'Something went wrong. Please try again.'
       })
-      setStep('result')
+      router.replace('/pay-bills?status=error')
     }
   })
 
-  function handleSelectBiller(biller: Biller) {
+  const { reset, getValues } = form
+
+  useEffect(() => {
+    if ((status === 'success' || status === 'error') && !result) {
+      router.replace('/pay-bills')
+    }
+  }, [status, result, router])
+
+  useEffect(() => {
+    if (status === 'success' || status === 'error') {
+      return
+    }
+
+    if (!billerSlug) {
+      setSelectedBiller(null)
+      return
+    }
+
+    if (!billersQuery.data) {
+      return
+    }
+
+    const biller = billersQuery.data.find((item) => item.slug === billerSlug)
+    if (!biller) {
+      router.replace('/pay-bills')
+      return
+    }
+
     setSelectedBiller(biller)
-    form.reset({
-      fromAccount: form.getValues('fromAccount') || '',
+    reset({
+      fromAccount: getValues('fromAccount') || '',
       billerId: biller.id,
       reference: '',
       amount: undefined,
       pin: ''
     })
-    setStep('form')
+  }, [billerSlug, billersQuery.data, getValues, reset, router, status])
+
+  function handleSelectBiller(biller: Biller) {
+    router.push(`/pay-bills?biller=${encodeURIComponent(biller.slug)}`)
+  }
+
+  function handleBackToBillers() {
+    router.back()
   }
 
   function onSubmit(values: PayBillFormValues) {
@@ -157,10 +211,15 @@ export default function PayBillsPage() {
     form.reset()
     setSelectedBiller(null)
     setResult(null)
-    setStep('select')
+    router.push('/pay-bills')
   }
 
-  if (step === 'result' && result) {
+  const showResult =
+    (status === 'success' || status === 'error') && result !== null
+  const showForm = !showResult && billerSlug !== null && selectedBiller !== null
+  const showSelect = !showResult && !showForm
+
+  if (showResult && result) {
     return (
       <AppShell>
         <PageHeader title="Pay Bills" />
@@ -190,7 +249,7 @@ export default function PayBillsPage() {
     )
   }
 
-  if (step === 'form' && selectedBiller) {
+  if (showForm && selectedBiller) {
     return (
       <AppShell>
         <PageHeader
@@ -305,7 +364,7 @@ export default function PayBillsPage() {
                     type="button"
                     variant="outline"
                     className="flex-1"
-                    onClick={() => setStep('select')}
+                    onClick={handleBackToBillers}
                     disabled={payMutation.isPending}
                   >
                     <ArrowLeft className="size-4" />
@@ -332,6 +391,10 @@ export default function PayBillsPage() {
         </Card>
       </AppShell>
     )
+  }
+
+  if (!showSelect) {
+    return <PayBillsLoading />
   }
 
   return (
@@ -386,5 +449,13 @@ export default function PayBillsPage() {
         </div>
       )}
     </AppShell>
+  )
+}
+
+export default function PayBillsPage() {
+  return (
+    <Suspense fallback={<PayBillsLoading />}>
+      <PayBillsContent />
+    </Suspense>
   )
 }

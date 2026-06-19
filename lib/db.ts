@@ -328,7 +328,6 @@ async function syncDemoAccounts() {
          VALUES ($1, $2, $3, $4, $5, $5)
          ON CONFLICT (account_number) DO UPDATE SET
            user_id = EXCLUDED.user_id,
-           account_name = EXCLUDED.account_name,
            balance = EXCLUDED.balance,
            pin = EXCLUDED.pin_hash,
            pin_hash = EXCLUDED.pin_hash`,
@@ -348,7 +347,6 @@ async function syncDemoAccounts() {
        VALUES ($1, $2, $3, $4, $5)
        ON CONFLICT (account_number) DO UPDATE SET
          user_id = EXCLUDED.user_id,
-         account_name = EXCLUDED.account_name,
          balance = EXCLUDED.balance,
          pin_hash = EXCLUDED.pin_hash`,
       [
