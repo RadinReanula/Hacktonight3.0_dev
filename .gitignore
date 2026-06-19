@@ -22,6 +22,9 @@
 
 # misc
 .DS_Store
+.cursor/
+.cursorrules
+.serena/
 *.pem
 
 # debug

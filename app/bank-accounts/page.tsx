@@ -1,15 +1,16 @@
 'use client'
 
-import React, { useState, useEffect } from 'react'
-import { useRouter, useSearchParams } from 'next/navigation'
 import Image from 'next/image'
+import { useRouter, useSearchParams } from 'next/navigation'
+import type React from 'react'
+import { Suspense, useEffect, useState } from 'react'
+import { Bell, Search } from '@/components/Icons'
 import Sidebar from '@/components/sidebar'
-import { Search, Bell } from '@/components/Icons'
 import styles from './accounts.module.css'
 
 type Screen = 'list' | 'add' | 'edit'
 
-export default function AccountsPage() {
+function AccountsPageInner() {
   const router = useRouter()
   const searchParams = useSearchParams()
 
@@ -504,5 +505,13 @@ export default function AccountsPage() {
         )}
       </section>
     </main>
+  )
+}
+
+export default function AccountsPage() {
+  return (
+    <Suspense fallback={null}>
+      <AccountsPageInner />
+    </Suspense>
   )
 }

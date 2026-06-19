@@ -1,24 +1,31 @@
-import { runStatement, serviceFailure } from '@/lib/platform-db'
+import { HttpError, requireRole } from '@/lib/auth'
+import { query, serviceFailure } from '@/lib/db'
 
-export async function GET(request: Request) {
+export async function GET() {
   try {
-    const cookies = request.headers.get('cookie') || ''
-    const users = await runStatement('SELECT * FROM users ORDER BY id')
-    const accounts = await runStatement('SELECT * FROM accounts ORDER BY id')
-    const logs = await runStatement(
-      'SELECT * FROM audit_logs ORDER BY id DESC LIMIT 10'
-    )
+    await requireRole('admin')
+
+    const [users, accounts, logs] = await Promise.all([
+      query(
+        'SELECT id, username, role, full_name, email, created_at FROM users ORDER BY id'
+      ),
+      query(
+        'SELECT id, user_id, account_number, account_name, balance, created_at FROM accounts ORDER BY id'
+      ),
+      query(
+        'SELECT id, event, payload, created_at FROM audit_logs ORDER BY id DESC LIMIT 20'
+      )
+    ])
 
     return Response.json({
       ok: true,
       message: 'System overview.',
-      cookies,
-      env: process.env,
       users: users.rows,
       accounts: accounts.rows,
       auditLogs: logs.rows
     })
   } catch (reason) {
+    if (reason instanceof HttpError) return reason.toResponse()
     return serviceFailure(reason)
   }
 }

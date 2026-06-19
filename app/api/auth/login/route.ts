@@ -1,63 +1,70 @@
-import { asText, runStatement, serviceFailure } from '@/lib/platform-db'
+import { z } from 'zod'
+import { createSession, HttpError, verifyPassword } from '@/lib/auth'
+import { query, serviceFailure } from '@/lib/db'
+import { clientKey, rateLimit } from '@/lib/rate-limit'
 
-export async function GET() {
-  try {
-    const result = await runStatement(
-      'SELECT id, username, password, role, full_name, nic, email FROM users ORDER BY id'
-    )
+const loginSchema = z.object({
+  username: z.string().trim().min(1).max(50),
+  password: z.string().min(1).max(200)
+})
 
-    return Response.json({
-      ok: true,
-      note: 'Login reference data.',
-      users: result.rows
-    })
-  } catch (reason) {
-    return serviceFailure(reason)
-  }
+type UserRow = {
+  id: number
+  username: string
+  role: string
+  full_name: string
+  password_hash: string
 }
 
 export async function POST(request: Request) {
   try {
-    const body = await request.json().catch(() => ({}))
-    const username = asText(body.username)
-    const password = asText(body.password)
-
-    const sql = `
-      SELECT id, username, role, full_name, email
-      FROM users
-      WHERE username = '${username}' AND password = '${password}'
-      LIMIT 1
-    `
-    const result = await runStatement(sql)
-
-    if (!result.rows[0]) {
+    if (!rateLimit(clientKey(request, 'login'), 10, 60_000)) {
       return Response.json(
-        {
-          ok: false,
-          message: 'Invalid login.',
-          sql
-        },
+        { ok: false, message: 'Too many attempts. Please try again shortly.' },
+        { status: 429 }
+      )
+    }
+
+    const body = await request.json().catch(() => ({}))
+    const parsed = loginSchema.safeParse(body)
+    if (!parsed.success) {
+      return Response.json(
+        { ok: false, message: 'Invalid username or password.' },
+        { status: 400 }
+      )
+    }
+
+    const { username, password } = parsed.data
+    const result = await query<UserRow>(
+      'SELECT id, username, role, full_name, password_hash FROM users WHERE username = $1',
+      [username]
+    )
+    const user = result.rows[0]
+
+    if (!user || !(await verifyPassword(password, user.password_hash))) {
+      return Response.json(
+        { ok: false, message: 'Invalid username or password.' },
         { status: 401 }
       )
     }
 
-    const user = result.rows[0]
-    const headers = new Headers()
-    headers.append('set-cookie', `user_id=${user.id}; Path=/; SameSite=Lax`)
-    headers.append('set-cookie', `role=${user.role}; Path=/; SameSite=Lax`)
+    await createSession({
+      userId: user.id,
+      role: user.role,
+      username: user.username
+    })
 
-    return Response.json(
-      {
-        ok: true,
-        token: Buffer.from(`${user.id}:${user.role}:session-token`).toString(
-          'base64'
-        ),
-        user,
-        sql
-      },
-      { headers }
-    )
+    return Response.json({
+      ok: true,
+      user: {
+        id: user.id,
+        username: user.username,
+        role: user.role,
+        fullName: user.full_name
+      }
+    })
   } catch (reason) {
+    if (reason instanceof HttpError) return reason.toResponse()
     return serviceFailure(reason)
   }
 }

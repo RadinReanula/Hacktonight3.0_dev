@@ -1,50 +1,111 @@
-import AuthButton from '@/components/authButton'
+'use client'
+
+import { zodResolver } from '@hookform/resolvers/zod'
+import { Loader2 } from 'lucide-react'
+import Link from 'next/link'
+import { useState } from 'react'
+import { useForm } from 'react-hook-form'
+import { z } from 'zod'
+import { StatusScreen } from '@/components/shell/status-screen'
+import { Button } from '@/components/ui/button'
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle
+} from '@/components/ui/card'
+import { Field, FieldError, FieldLabel } from '@/components/ui/field'
+import { Input } from '@/components/ui/input'
+
+// NOTE: Backend OTP/email delivery is not yet implemented. This page validates
+// input and shows a confirmation. Wire it to a real reset endpoint when the
+// email/OTP service is available.
+const resetSchema = z.object({
+  email: z.string().email('Enter a valid email.')
+})
+
+type ResetValues = z.infer<typeof resetSchema>
 
 export default function ResetPasswordPage() {
+  const [sent, setSent] = useState(false)
+
+  const {
+    register,
+    handleSubmit,
+    formState: { errors, isSubmitting }
+  } = useForm<ResetValues>({ resolver: zodResolver(resetSchema) })
+
+  async function onSubmit(_values: ResetValues) {
+    await new Promise((resolve) => setTimeout(resolve, 400))
+    setSent(true)
+  }
+
+  if (sent) {
+    return (
+      <Card>
+        <CardContent className="pt-6">
+          <StatusScreen
+            variant="success"
+            title="Check your email"
+            description="If an account matches that email, we've sent password reset instructions."
+          >
+            <Button asChild className="w-full">
+              <Link href="/login">Back to sign in</Link>
+            </Button>
+          </StatusScreen>
+        </CardContent>
+      </Card>
+    )
+  }
+
   return (
-    <section className="mx-auto flex min-h-[500px] w-full max-w-[1100px] items-center justify-center rounded-[58px] bg-white px-8 py-10 shadow-[0_1px_3px_0_rgba(0,0,0,0.30),0_4px_8px_3px_rgba(0,0,0,0.15)] lg:min-h-[684px]">
-      <div className="w-full max-w-[670px]">
-        <h1 className="mb-16 text-center text-[2.6rem] font-bold text-black text-balance">
-          RESET PASSWORD
-        </h1>
-
-        <div className="space-y-8">
-          <div className="grid items-center gap-4 md:grid-cols-[120px_1fr]">
-            <label className="text-xl text-black" htmlFor="reset-email">
-              Email:
-            </label>
-            <input
-              id="reset-email"
-              className="h-[64px] rounded-[40px] border-0 bg-[#d9d9d9] px-7 text-lg text-black outline-none"
+    <Card>
+      <CardHeader className="text-center">
+        <CardTitle className="text-2xl">Reset password</CardTitle>
+        <CardDescription>
+          Enter your email and we&apos;ll send reset instructions
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        <form
+          className="flex flex-col gap-4"
+          onSubmit={handleSubmit(onSubmit)}
+          noValidate
+        >
+          <Field>
+            <FieldLabel htmlFor="email">Email</FieldLabel>
+            <Input
+              id="email"
+              type="email"
+              autoComplete="email"
+              aria-invalid={Boolean(errors.email)}
+              {...register('email')}
             />
-          </div>
+            <FieldError>{errors.email?.message}</FieldError>
+          </Field>
 
-          <div className="grid items-center gap-4 md:grid-cols-[120px_250px]">
-            <label className="text-xl text-black" htmlFor="reset-otp">
-              OTP:
-            </label>
-            <input
-              id="reset-otp"
-              className="h-[64px] rounded-[40px] border-0 bg-[#d9d9d9] px-7 text-lg text-black outline-none"
-            />
-          </div>
+          <Button type="submit" className="mt-2" disabled={isSubmitting}>
+            {isSubmitting ? (
+              <>
+                <Loader2 className="size-4 animate-spin" /> Sending...
+              </>
+            ) : (
+              'Send reset link'
+            )}
+          </Button>
 
-          <div className="grid items-center gap-4 md:grid-cols-[120px_250px]">
-            <label className="text-xl text-black" htmlFor="reset-password">
-              New Password:
-            </label>
-            <input
-              id="reset-password"
-              type="password"
-              className="h-[64px] rounded-[40px] border-0 bg-[#d9d9d9] px-7 text-lg text-black outline-none"
-            />
-          </div>
-        </div>
-
-        <div className="mt-12 flex justify-center">
-          <AuthButton>SIGN IN</AuthButton>
-        </div>
-      </div>
-    </section>
+          <p className="text-center text-muted-foreground text-sm">
+            Remembered it?{' '}
+            <Link
+              href="/login"
+              className="font-medium text-primary hover:underline"
+            >
+              Sign in
+            </Link>
+          </p>
+        </form>
+      </CardContent>
+    </Card>
   )
 }

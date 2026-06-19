@@ -1,25 +1,61 @@
-# HTN26 Challenge
+# Nova Bank — HTN26 Challenge
 
-## Getting started
+A Next.js 16 / React 19 banking web app. The project is being rebuilt from a
+prototype into an industry-standard app: a shared shadcn-style design system, a
+secured PostgreSQL backend (parameterized queries, hashed credentials, signed
+sessions, RBAC), and redesigned feature areas.
 
-**prerequisites**
+## Tech stack
 
-- docker (with [wsl2 backend](https://docs.docker.com/desktop/features/wsl) on windows)
+- Next.js 16 (App Router, Turbopack) + React 19 + TypeScript (strict)
+- Tailwind CSS v4 design tokens + shadcn-style components (`components/ui`, `components/shell`)
+- PostgreSQL via `pg` (parameterized `lib/db.ts`)
+- Auth: `jose` signed session cookies + `bcryptjs` hashing, route protection in `proxy.ts`
+- Data/forms: TanStack Query, React Hook Form, Zod
+- Tooling: Biome (lint + format), Lefthook (pre-commit), npm
 
+## Prerequisites
 
-## Setting up 
+- Docker (with [WSL2 backend](https://docs.docker.com/desktop/features/wsl) on Windows), or
+- Node.js >= 20 and a local/Docker PostgreSQL for the non-Docker workflow
+
+## Setup
 
 ```bash
-git clone https://github.com/fossnsbm/hack-to-night-2026-challenge.git
-cd hack-to-night-2026-challenge
-```
-
-Set your environment variables accordingly in `env.local`
-```bash
+git clone https://github.com/RadinReanula/Hacktonight3.0_dev.git
+cd Hacktonight3.0_dev
 cp .env.example .env.local
 ```
 
-## Running dev server 
+Set values in `.env.local` (notably `DATABASE_URL` and `SESSION_SECRET`).
+
+## Run with Docker (recommended)
+
 ```bash
 docker compose up --build --watch
 ```
+
+App: http://localhost:3000 · Postgres: localhost:5432
+
+## Run locally (without Docker)
+
+```bash
+npm install
+npm run dev
+```
+
+## Scripts
+
+- `npm run dev` — start the dev server
+- `npm run build` / `npm run start` — production build / serve
+- `npm run lint` — Biome check · `npm run lint:fix` — Biome check + autofix
+- `npm run typecheck` — `tsc --noEmit`
+- `npm run format` — Biome format
+
+The database schema and demo data are created automatically on first request
+(`lib/db.ts`). Demo logins: `dilara / password123`, `kasun / kasun12345`,
+`admin / admin12345`.
+
+## Team development
+
+Per-member implementation plans live in [`docs/team-plans`](docs/team-plans/README.md).

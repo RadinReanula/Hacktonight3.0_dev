@@ -1,7 +1,7 @@
 'use client'
 
-import Sidebar from '../../components/sidebar'
 import { Bell, ChevronRight, Search } from '../../components/Icons'
+import Sidebar from '../../components/sidebar'
 
 const transactions = [
   {

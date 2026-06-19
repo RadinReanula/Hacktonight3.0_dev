@@ -1,8 +1,12 @@
+import path from 'node:path'
 import type { NextConfig } from 'next'
 
 const nextConfig: NextConfig = {
   output: 'standalone',
-  serverExternalPackages: ['pg']
+  serverExternalPackages: ['pg'],
+  turbopack: {
+    root: path.join(__dirname)
+  }
 }
 
 export default nextConfig

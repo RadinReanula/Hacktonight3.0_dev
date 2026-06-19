@@ -1,55 +1,166 @@
-import AuthButton from '@/components/authButton'
+'use client'
+
+import { zodResolver } from '@hookform/resolvers/zod'
+import { Loader2 } from 'lucide-react'
+import Link from 'next/link'
+import { useRouter } from 'next/navigation'
+import { useState } from 'react'
+import { useForm } from 'react-hook-form'
+import { z } from 'zod'
+import { Button } from '@/components/ui/button'
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle
+} from '@/components/ui/card'
+import { Field, FieldError, FieldLabel } from '@/components/ui/field'
+import { Input } from '@/components/ui/input'
+import { registerRequest } from '@/lib/api/auth'
+
+const signUpSchema = z
+  .object({
+    fullName: z.string().min(2, 'Please enter your full name.').max(80),
+    username: z
+      .string()
+      .min(3, 'Username must be at least 3 characters.')
+      .max(30)
+      .regex(/^[a-zA-Z0-9_]+$/, 'Use letters, numbers, or underscores only.'),
+    email: z.string().email('Enter a valid email.'),
+    password: z.string().min(8, 'Password must be at least 8 characters.'),
+    confirmPassword: z.string()
+  })
+  .refine((data) => data.password === data.confirmPassword, {
+    message: 'Passwords do not match.',
+    path: ['confirmPassword']
+  })
+
+type SignUpValues = z.infer<typeof signUpSchema>
 
 export default function SignUpPage() {
-  const fields = [
-    'Account Number',
-    'Account Name',
-    'Branch',
-    'Email',
-    'Password',
-    'Confirm Password'
-  ]
+  const router = useRouter()
+  const [formError, setFormError] = useState<string | null>(null)
+
+  const {
+    register,
+    handleSubmit,
+    formState: { errors, isSubmitting }
+  } = useForm<SignUpValues>({ resolver: zodResolver(signUpSchema) })
+
+  async function onSubmit(values: SignUpValues) {
+    setFormError(null)
+    try {
+      await registerRequest({
+        username: values.username,
+        fullName: values.fullName,
+        email: values.email,
+        password: values.password
+      })
+      router.replace('/dashboard')
+      router.refresh()
+    } catch (err) {
+      setFormError(err instanceof Error ? err.message : 'Sign up failed.')
+    }
+  }
 
   return (
-    <section className="mx-auto min-h-[700px] w-full max-w-[1100px] rounded-[58px] bg-white px-8 py-9 shadow-[0_1px_3px_0_rgba(0,0,0,0.30),0_4px_8px_3px_rgba(0,0,0,0.15)] lg:min-h-[820px] lg:px-14">
-      <div className="relative mx-auto w-full max-w-[860px]">
-        <img
-          src="/loginlogo.png"
-          alt="Nova Bank"
-          className="absolute left-0 top-0 hidden w-[128px] md:block"
-        />
+    <Card>
+      <CardHeader className="text-center">
+        <CardTitle className="text-2xl">Create your account</CardTitle>
+        <CardDescription>Start banking with Nova Bank</CardDescription>
+      </CardHeader>
+      <CardContent>
+        <form
+          className="flex flex-col gap-4"
+          onSubmit={handleSubmit(onSubmit)}
+          noValidate
+        >
+          <Field>
+            <FieldLabel htmlFor="fullName">Full name</FieldLabel>
+            <Input
+              id="fullName"
+              autoComplete="name"
+              aria-invalid={Boolean(errors.fullName)}
+              {...register('fullName')}
+            />
+            <FieldError>{errors.fullName?.message}</FieldError>
+          </Field>
 
-        <h1 className="mb-12 text-center text-[2.6rem] font-bold text-black text-balance">
-          SIGN UP
-        </h1>
+          <Field>
+            <FieldLabel htmlFor="username">Username</FieldLabel>
+            <Input
+              id="username"
+              autoComplete="username"
+              aria-invalid={Boolean(errors.username)}
+              {...register('username')}
+            />
+            <FieldError>{errors.username?.message}</FieldError>
+          </Field>
 
-        <div className="space-y-4">
-          {fields.map((field) => {
-            const fieldId = `sign-up-${field.toLowerCase().replaceAll(' ', '-')}`
-            const isPassword = field.toLowerCase().includes('password')
+          <Field>
+            <FieldLabel htmlFor="email">Email</FieldLabel>
+            <Input
+              id="email"
+              type="email"
+              autoComplete="email"
+              aria-invalid={Boolean(errors.email)}
+              {...register('email')}
+            />
+            <FieldError>{errors.email?.message}</FieldError>
+          </Field>
 
-            return (
-              <div
-                className="grid items-center gap-4 md:grid-cols-[180px_1fr]"
-                key={field}
-              >
-                <label className="text-xl text-black" htmlFor={fieldId}>
-                  {field} :
-                </label>
-                <input
-                  id={fieldId}
-                  type={isPassword ? 'password' : 'text'}
-                  className="h-[64px] rounded-[40px] border-0 bg-[#d9d9d9] px-7 text-lg text-black outline-none"
-                />
-              </div>
-            )
-          })}
-        </div>
+          <Field>
+            <FieldLabel htmlFor="password">Password</FieldLabel>
+            <Input
+              id="password"
+              type="password"
+              autoComplete="new-password"
+              aria-invalid={Boolean(errors.password)}
+              {...register('password')}
+            />
+            <FieldError>{errors.password?.message}</FieldError>
+          </Field>
 
-        <div className="mt-8 flex justify-center">
-          <AuthButton>SIGN UP</AuthButton>
-        </div>
-      </div>
-    </section>
+          <Field>
+            <FieldLabel htmlFor="confirmPassword">Confirm password</FieldLabel>
+            <Input
+              id="confirmPassword"
+              type="password"
+              autoComplete="new-password"
+              aria-invalid={Boolean(errors.confirmPassword)}
+              {...register('confirmPassword')}
+            />
+            <FieldError>{errors.confirmPassword?.message}</FieldError>
+          </Field>
+
+          {formError ? (
+            <p role="alert" className="text-destructive text-sm">
+              {formError}
+            </p>
+          ) : null}
+
+          <Button type="submit" className="mt-2" disabled={isSubmitting}>
+            {isSubmitting ? (
+              <>
+                <Loader2 className="size-4 animate-spin" /> Creating account...
+              </>
+            ) : (
+              'Create account'
+            )}
+          </Button>
+
+          <p className="text-center text-muted-foreground text-sm">
+            Already have an account?{' '}
+            <Link
+              href="/login"
+              className="font-medium text-primary hover:underline"
+            >
+              Sign in
+            </Link>
+          </p>
+        </form>
+      </CardContent>
+    </Card>
   )
 }

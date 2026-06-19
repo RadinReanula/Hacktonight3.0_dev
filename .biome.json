@@ -16,7 +16,7 @@
     "enabled": false
   },
   "linter": {
-    "enabled": false,
+    "enabled": true,
     "rules": {
       "recommended": true
     }
@@ -43,5 +43,33 @@
   },
   "assist": {
     "enabled": true
-  }
+  },
+  "overrides": [
+    {
+      "includes": [
+        "app/bank-accounts/page.tsx",
+        "app/bank-transfer/page.tsx",
+        "app/pay-bills/page.tsx",
+        "app/dashboard/page.tsx",
+        "app/e-statement/page.tsx",
+        "components/sidebar.tsx",
+        "components/Icons.tsx",
+        "components/authButton.tsx"
+      ],
+      "linter": {
+        "rules": {
+          "a11y": {
+            "useButtonType": "warn",
+            "noSvgWithoutTitle": "warn",
+            "noLabelWithoutControl": "warn",
+            "noStaticElementInteractions": "warn",
+            "useKeyWithClickEvents": "warn"
+          },
+          "suspicious": {
+            "noArrayIndexKey": "warn"
+          }
+        }
+      }
+    }
+  ]
 }
