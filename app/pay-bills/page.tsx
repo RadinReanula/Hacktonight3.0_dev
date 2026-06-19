@@ -1,510 +1,390 @@
 'use client'
 
-import Image from 'next/image'
-import { useState } from 'react'
+import { zodResolver } from '@hookform/resolvers/zod'
+import { useMutation, useQuery } from '@tanstack/react-query'
 import {
-  AlertTriangle,
-  CheckCircle2,
-  ChevronLeft,
-  Search,
-  Settings
-} from '../../components/Icons'
-import Sidebar from '../../components/sidebar'
+  ArrowLeft,
+  Droplets,
+  Landmark,
+  Loader2,
+  type LucideIcon,
+  Shield,
+  Smartphone,
+  Tv,
+  Zap
+} from 'lucide-react'
+import Link from 'next/link'
+import { useState } from 'react'
+import { Controller, useForm } from 'react-hook-form'
+import { z } from 'zod'
+import { AppShell } from '@/components/shell/app-shell'
+import { PageHeader } from '@/components/shell/page-header'
+import { StatusScreen } from '@/components/shell/status-screen'
+import { Button } from '@/components/ui/button'
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle
+} from '@/components/ui/card'
+import { Field, FieldError, FieldLabel } from '@/components/ui/field'
+import { Input } from '@/components/ui/input'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue
+} from '@/components/ui/select'
+import { fetchAccounts } from '@/lib/api/accounts'
+import { type Biller, fetchBillers } from '@/lib/api/billers'
+import { postPayBill } from '@/lib/api/pay-bills'
+import { payBillFormSchema } from '@/lib/pay-bills/schemas'
 
-type Biller = {
-  id: string
-  name: string
-  logo: string
+const payBillWithPinSchema = payBillFormSchema.extend({
+  pin: z
+    .string()
+    .trim()
+    .regex(/^\d{4}$/, 'PIN must be exactly 4 digits.')
+})
+
+type PayBillFormValues = z.infer<typeof payBillWithPinSchema>
+
+type Step = 'select' | 'form' | 'result'
+
+const categoryIcons: Record<string, LucideIcon> = {
+  Electricity: Zap,
+  Water: Droplets,
+  Mobile: Smartphone,
+  Entertainment: Tv,
+  Insurance: Shield,
+  Finance: Landmark
 }
 
-const billers: Biller[] = [
-  { id: 'water', name: 'Water Board', logo: '/billers/water-board.png' },
-  { id: 'cable', name: 'Cable TV', logo: '/billers/cable-tv.png' },
-  { id: 'ceb', name: 'CEB', logo: '/billers/ceb.png' },
-  { id: 'airtel', name: 'Airtel', logo: '/billers/airtel.png' },
-  { id: 'dialog', name: 'Dialog', logo: '/billers/dialog.png' },
-  { id: 'slt', name: 'Sri Lanka Telecom', logo: '/billers/electricity.png' },
-  { id: 'peotv', name: 'PEO TV', logo: '/billers/mpesa.png' },
-  { id: 'hutch', name: 'Hutch', logo: '/billers/hutch.png' },
-  { id: 'aia', name: 'AIA', logo: '/billers/aia.png' },
-  { id: 'lolc', name: 'LOLC', logo: '/billers/lolc.png' },
-  { id: 'insurance2', name: 'Insurance', logo: '/billers/insurance2.png' },
-  { id: 'hsbc', name: 'HSBC', logo: '/billers/hsbc.png' }
-]
+function BillerIcon({ category }: { category: string }) {
+  const Icon = categoryIcons[category] ?? Landmark
+  return (
+    <span className="flex size-12 items-center justify-center rounded-full bg-accent text-accent-foreground">
+      <Icon className="size-6" aria-hidden />
+    </span>
+  )
+}
 
-type Screen = 'select' | 'form' | 'success' | 'failed'
-
-const MOCK_BALANCE = 5000
-
-type FormErrors = {
-  accountNumber?: string
-  billId?: string
-  dueAmount?: string
+function formatCurrency(value: number) {
+  return new Intl.NumberFormat('en-LK', {
+    style: 'currency',
+    currency: 'LKR',
+    minimumFractionDigits: 2
+  }).format(value)
 }
 
 export default function PayBillsPage() {
-  const [screen, setScreen] = useState<Screen>('select')
+  const [step, setStep] = useState<Step>('select')
   const [selectedBiller, setSelectedBiller] = useState<Biller | null>(null)
-  const [accountNumber, setAccountNumber] = useState('')
-  const [billId, setBillId] = useState('')
-  const [dueAmount, setDueAmount] = useState('')
-  const [remarks, setRemarks] = useState('')
-  const [confirmationNumber, setConfirmationNumber] = useState('')
-  const [failReason, setFailReason] = useState('')
-  const [errors, setErrors] = useState<FormErrors>({})
+  const [result, setResult] = useState<{
+    variant: 'success' | 'error'
+    title: string
+    description?: string
+    transactionId?: number
+  } | null>(null)
+
+  const billersQuery = useQuery({
+    queryKey: ['billers'],
+    queryFn: async () => {
+      const data = await fetchBillers()
+      return data.billers
+    }
+  })
+
+  const accountsQuery = useQuery({
+    queryKey: ['accounts'],
+    queryFn: fetchAccounts
+  })
+
+  const form = useForm<PayBillFormValues>({
+    resolver: zodResolver(payBillWithPinSchema),
+    defaultValues: {
+      fromAccount: '',
+      billerId: 0,
+      reference: '',
+      amount: undefined,
+      pin: ''
+    }
+  })
+
+  const payMutation = useMutation({
+    mutationFn: postPayBill,
+    onSuccess: (data) => {
+      setResult({
+        variant: 'success',
+        title: 'Payment successful',
+        description: `Your payment of ${formatCurrency(data.transaction.amount)} was completed.`,
+        transactionId: data.transaction.id
+      })
+      setStep('result')
+    },
+    onError: (error) => {
+      setResult({
+        variant: 'error',
+        title: 'Payment failed',
+        description:
+          error instanceof Error
+            ? error.message
+            : 'Something went wrong. Please try again.'
+      })
+      setStep('result')
+    }
+  })
 
   function handleSelectBiller(biller: Biller) {
     setSelectedBiller(biller)
-    setErrors({})
-    setScreen('form')
+    form.reset({
+      fromAccount: form.getValues('fromAccount') || '',
+      billerId: biller.id,
+      reference: '',
+      amount: undefined,
+      pin: ''
+    })
+    setStep('form')
   }
 
-  function validateForm(): boolean {
-    const newErrors: FormErrors = {}
-
-    if (!accountNumber.trim()) {
-      newErrors.accountNumber = 'Account number is required'
-    } else if (!/^[0-9]{6,16}$/.test(accountNumber.trim())) {
-      newErrors.accountNumber = 'Enter a valid account number (6–16 digits)'
-    }
-
-    if (!billId.trim()) {
-      newErrors.billId = 'Bill ID is required'
-    } else if (billId.trim().length < 3) {
-      newErrors.billId = 'Bill ID looks too short'
-    }
-
-    if (!dueAmount.trim()) {
-      newErrors.dueAmount = 'Due amount is required'
-    } else {
-      const amount = Number(dueAmount)
-      if (Number.isNaN(amount) || amount <= 0) {
-        newErrors.dueAmount = 'Enter a valid amount greater than 0'
-      }
-    }
-
-    setErrors(newErrors)
-    return Object.keys(newErrors).length === 0
+  function onSubmit(values: PayBillFormValues) {
+    payMutation.mutate(values)
   }
 
-  function handlePayNow() {
-    if (!validateForm()) {
-      return
-    }
-
-    const amount = Number(dueAmount)
-
-    if (amount > MOCK_BALANCE) {
-      setFailReason(
-        `Insufficient Balance\nCurrent Balance is: Rs.${MOCK_BALANCE}`
-      )
-      setScreen('failed')
-      return
-    }
-
-    const confNum = Math.floor(10000000 + Math.random() * 90000000).toString()
-    setConfirmationNumber(confNum)
-    setScreen('success')
-  }
-
-  function resetToHome() {
-    setScreen('select')
+  function resetWizard() {
+    form.reset()
     setSelectedBiller(null)
-    setAccountNumber('')
-    setBillId('')
-    setDueAmount('')
-    setRemarks('')
-    setErrors({})
+    setResult(null)
+    setStep('select')
+  }
+
+  if (step === 'result' && result) {
+    return (
+      <AppShell>
+        <PageHeader title="Pay Bills" />
+        <Card className="mx-auto max-w-lg">
+          <CardContent className="pt-6">
+            <StatusScreen
+              variant={result.variant}
+              title={result.title}
+              description={
+                result.transactionId
+                  ? `${result.description} Confirmation #${result.transactionId}.`
+                  : result.description
+              }
+            >
+              <div className="flex flex-col gap-2 sm:flex-row">
+                <Button className="flex-1" onClick={resetWizard}>
+                  Pay another bill
+                </Button>
+                <Button asChild variant="outline" className="flex-1">
+                  <Link href="/dashboard">Back to dashboard</Link>
+                </Button>
+              </div>
+            </StatusScreen>
+          </CardContent>
+        </Card>
+      </AppShell>
+    )
+  }
+
+  if (step === 'form' && selectedBiller) {
+    return (
+      <AppShell>
+        <PageHeader
+          title="Pay Bills"
+          description={`Pay ${selectedBiller.name}`}
+        />
+        <Card className="mx-auto max-w-lg">
+          <CardHeader>
+            <div className="flex items-center gap-3">
+              <BillerIcon category={selectedBiller.category} />
+              <div>
+                <CardTitle>{selectedBiller.name}</CardTitle>
+                <CardDescription>{selectedBiller.category}</CardDescription>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent>
+            {accountsQuery.isLoading ? (
+              <div className="flex items-center justify-center py-8 text-muted-foreground text-sm">
+                <Loader2 className="mr-2 size-4 animate-spin" />
+                Loading accounts...
+              </div>
+            ) : (
+              <form
+                className="flex flex-col gap-4"
+                onSubmit={form.handleSubmit(onSubmit)}
+                noValidate
+              >
+                <input
+                  type="hidden"
+                  {...form.register('billerId', { valueAsNumber: true })}
+                />
+
+                <Field>
+                  <FieldLabel htmlFor="fromAccount">From account</FieldLabel>
+                  <Controller
+                    control={form.control}
+                    name="fromAccount"
+                    render={({ field }) => (
+                      <Select
+                        value={field.value}
+                        onValueChange={field.onChange}
+                      >
+                        <SelectTrigger id="fromAccount">
+                          <SelectValue placeholder="Select account" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {accountsQuery.data?.map((account) => (
+                            <SelectItem
+                              key={account.id}
+                              value={account.accountNumber}
+                            >
+                              {account.accountName} ({account.accountNumber})
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    )}
+                  />
+                  <FieldError>
+                    {form.formState.errors.fromAccount?.message}
+                  </FieldError>
+                </Field>
+
+                <Field>
+                  <FieldLabel htmlFor="reference">
+                    Bill / account reference
+                  </FieldLabel>
+                  <Input
+                    id="reference"
+                    autoComplete="off"
+                    aria-invalid={Boolean(form.formState.errors.reference)}
+                    {...form.register('reference')}
+                  />
+                  <FieldError>
+                    {form.formState.errors.reference?.message}
+                  </FieldError>
+                </Field>
+
+                <Field>
+                  <FieldLabel htmlFor="amount">Amount (LKR)</FieldLabel>
+                  <Input
+                    id="amount"
+                    type="number"
+                    step="0.01"
+                    min="0.01"
+                    inputMode="decimal"
+                    aria-invalid={Boolean(form.formState.errors.amount)}
+                    {...form.register('amount', { valueAsNumber: true })}
+                  />
+                  <FieldError>
+                    {form.formState.errors.amount?.message}
+                  </FieldError>
+                </Field>
+
+                <Field>
+                  <FieldLabel htmlFor="pin">4-digit PIN</FieldLabel>
+                  <Input
+                    id="pin"
+                    type="password"
+                    inputMode="numeric"
+                    autoComplete="off"
+                    maxLength={4}
+                    aria-invalid={Boolean(form.formState.errors.pin)}
+                    {...form.register('pin')}
+                  />
+                  <FieldError>{form.formState.errors.pin?.message}</FieldError>
+                </Field>
+
+                <div className="flex flex-col gap-2 sm:flex-row">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="flex-1"
+                    onClick={() => setStep('select')}
+                    disabled={payMutation.isPending}
+                  >
+                    <ArrowLeft className="size-4" />
+                    Back
+                  </Button>
+                  <Button
+                    type="submit"
+                    className="flex-1"
+                    disabled={payMutation.isPending}
+                  >
+                    {payMutation.isPending ? (
+                      <>
+                        <Loader2 className="size-4 animate-spin" />
+                        Processing...
+                      </>
+                    ) : (
+                      'Pay bill'
+                    )}
+                  </Button>
+                </div>
+              </form>
+            )}
+          </CardContent>
+        </Card>
+      </AppShell>
+    )
   }
 
   return (
-    <div className="page">
-      <Sidebar />
-
-      <div className="content">
-        <header className="topbar">
-          <h1>Pay Bills</h1>
-          <div className="topbar-icons">
-            <Search size={20} />
-            <Settings size={20} />
-            <div className="avatar">
-              <Image
-                src="/avatar.png"
-                alt="Profile"
-                width={36}
-                height={36}
-                style={{ objectFit: 'cover', borderRadius: '50%' }}
-              />
-            </div>
-          </div>
-        </header>
-
-        <main className="main">
-          <div className="card-wrapper">
-            {screen === 'select' && (
-              <div className="card">
-                <div className="biller-grid">
-                  {billers.map((biller) => (
-                    <button
-                      key={biller.id}
-                      onClick={() => handleSelectBiller(biller)}
-                      className="biller-btn"
-                    >
-                      <div className="biller-icon logo-circle">
-                        <Image
-                          src={biller.logo}
-                          alt={biller.name}
-                          width={44}
-                          height={44}
-                          style={{ objectFit: 'contain' }}
-                        />
-                      </div>
-                      <span className="biller-name">{biller.name}</span>
-                    </button>
-                  ))}
+    <AppShell>
+      <PageHeader
+        title="Pay Bills"
+        description="Select a biller to pay your bill"
+      />
+      {billersQuery.isLoading ? (
+        <div className="flex items-center justify-center py-16 text-muted-foreground text-sm">
+          <Loader2 className="mr-2 size-4 animate-spin" />
+          Loading billers...
+        </div>
+      ) : billersQuery.isError ? (
+        <Card className="mx-auto max-w-lg">
+          <CardContent className="pt-6">
+            <StatusScreen
+              variant="error"
+              title="Could not load billers"
+              description={
+                billersQuery.error instanceof Error
+                  ? billersQuery.error.message
+                  : 'Please try again.'
+              }
+            >
+              <Button onClick={() => billersQuery.refetch()}>Retry</Button>
+            </StatusScreen>
+          </CardContent>
+        </Card>
+      ) : (
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+          {billersQuery.data?.map((biller) => (
+            <Card
+              key={biller.id}
+              className="cursor-pointer transition-colors hover:border-primary/40 hover:bg-accent/30"
+            >
+              <button
+                type="button"
+                className="flex h-full w-full flex-col items-center gap-3 p-6 text-center"
+                onClick={() => handleSelectBiller(biller)}
+              >
+                <BillerIcon category={biller.category} />
+                <div>
+                  <p className="font-medium">{biller.name}</p>
+                  <p className="text-muted-foreground text-sm">
+                    {biller.category}
+                  </p>
                 </div>
-              </div>
-            )}
-
-            {screen === 'form' && selectedBiller && (
-              <div className="card">
-                <button
-                  className="back-btn"
-                  onClick={() => setScreen('select')}
-                >
-                  <ChevronLeft size={16} />
-                  Back to billers
-                </button>
-
-                <div className="biller-header">
-                  <div className="biller-icon small logo-circle">
-                    <Image
-                      src={selectedBiller.logo}
-                      alt={selectedBiller.name}
-                      width={28}
-                      height={28}
-                      style={{ objectFit: 'contain' }}
-                    />
-                  </div>
-                  <span className="biller-header-name">
-                    {selectedBiller.name}
-                  </span>
-                </div>
-
-                <div className="field">
-                  <label>Account number</label>
-                  <input
-                    value={accountNumber}
-                    onChange={(e) => setAccountNumber(e.target.value)}
-                    placeholder="Enter account number"
-                    className={errors.accountNumber ? 'input-error' : ''}
-                  />
-                  {errors.accountNumber && (
-                    <span className="error-text">{errors.accountNumber}</span>
-                  )}
-                </div>
-
-                <div className="field">
-                  <label>Bill ID</label>
-                  <input
-                    value={billId}
-                    onChange={(e) => setBillId(e.target.value)}
-                    placeholder="Enter bill ID"
-                    className={errors.billId ? 'input-error' : ''}
-                  />
-                  {errors.billId && (
-                    <span className="error-text">{errors.billId}</span>
-                  )}
-                </div>
-
-                <div className="field">
-                  <label>Due Amount</label>
-                  <input
-                    type="number"
-                    value={dueAmount}
-                    onChange={(e) => setDueAmount(e.target.value)}
-                    placeholder="0.00"
-                    className={errors.dueAmount ? 'input-error' : ''}
-                  />
-                  {errors.dueAmount && (
-                    <span className="error-text">{errors.dueAmount}</span>
-                  )}
-                </div>
-
-                <div className="field">
-                  <label>Remarks</label>
-                  <input
-                    value={remarks}
-                    onChange={(e) => setRemarks(e.target.value)}
-                    placeholder="Optional"
-                  />
-                </div>
-
-                <button className="pay-now-btn" onClick={handlePayNow}>
-                  PAY NOW
-                </button>
-              </div>
-            )}
-
-            {screen === 'success' && (
-              <div className="card status-card">
-                <div className="status-circle success">
-                  <CheckCircle2 size={64} />
-                </div>
-                <h2>Payment Successful!</h2>
-                <p className="status-sub">
-                  Confirmation number : {confirmationNumber}
-                </p>
-                <button className="back-home-btn" onClick={resetToHome}>
-                  <ChevronLeft size={16} />
-                  BACK TO HOME
-                </button>
-              </div>
-            )}
-
-            {screen === 'failed' && (
-              <div className="card status-card">
-                <div className="status-circle failed">
-                  <AlertTriangle size={64} />
-                </div>
-                <h2>Payment Failed!</h2>
-                <p className="status-sub">{failReason}</p>
-                <button className="back-home-btn" onClick={resetToHome}>
-                  <ChevronLeft size={16} />
-                  BACK TO HOME
-                </button>
-              </div>
-            )}
-          </div>
-        </main>
-      </div>
-
-      <style jsx>{`
-        .page {
-          display: flex;
-          min-height: 100vh;
-          background: #f3f4f6;
-        }
-        .content {
-          flex: 1;
-          display: flex;
-          flex-direction: column;
-        }
-        .topbar {
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          background: white;
-          padding: 1.1rem 2.5rem;
-          border-bottom: 1px solid #eee;
-        }
-        .topbar h1 {
-          font-size: 1.25rem;
-          font-weight: 600;
-          color: #333;
-        }
-        .topbar-icons {
-          display: flex;
-          align-items: center;
-          gap: 1.5rem;
-          color: #666;
-        }
-        .avatar {
-          width: 36px;
-          height: 36px;
-          border-radius: 50%;
-          overflow: hidden;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-        }
-        .main {
-          flex: 1;
-          display: flex;
-          justify-content: center;
-          padding: 3rem;
-        }
-        .card-wrapper {
-          width: 100%;
-          max-width: 760px;
-        }
-        .card {
-          background: white;
-          border-radius: 24px;
-          box-shadow: 0 6px 24px rgba(0, 0, 0, 0.06);
-          padding: 3rem;
-        }
-        .biller-grid {
-          display: grid;
-          grid-template-columns: repeat(4, 1fr);
-          gap: 2.5rem 2rem;
-        }
-        .biller-btn {
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-          gap: 0.65rem;
-          background: none;
-          border: none;
-          cursor: pointer;
-        }
-        .biller-icon {
-          width: 76px;
-          height: 76px;
-          border-radius: 50%;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          transition: transform 0.15s, box-shadow 0.15s;
-        }
-        .biller-icon.small {
-          width: 48px;
-          height: 48px;
-        }
-        .logo-circle {
-          background: white;
-          border: 1px solid #eee;
-        }
-        .biller-btn:hover .biller-icon {
-          transform: scale(1.07);
-          box-shadow: 0 4px 14px rgba(0, 0, 0, 0.1);
-        }
-        .biller-name {
-          font-size: 0.82rem;
-          color: #555;
-          text-align: center;
-          line-height: 1.25;
-          font-weight: 500;
-        }
-        .back-btn {
-          display: flex;
-          align-items: center;
-          gap: 0.25rem;
-          background: none;
-          border: none;
-          color: #888;
-          font-size: 0.9rem;
-          cursor: pointer;
-          margin-bottom: 1.75rem;
-          padding: 0;
-        }
-        .back-btn:hover {
-          color: #555;
-        }
-        .biller-header {
-          display: flex;
-          align-items: center;
-          gap: 0.85rem;
-          margin-bottom: 2.25rem;
-        }
-        .biller-header-name {
-          font-weight: 600;
-          font-size: 1.05rem;
-          color: #333;
-        }
-        .field {
-          display: flex;
-          flex-direction: column;
-          gap: 0.4rem;
-          margin-bottom: 1.4rem;
-        }
-        .field label {
-          font-size: 0.9rem;
-          color: #666;
-          font-weight: 500;
-        }
-        .field input {
-          background: #f3f4f6;
-          border: 1.5px solid transparent;
-          border-radius: 12px;
-          padding: 0.85rem 1.1rem;
-          font-size: 0.95rem;
-          color: #333;
-          outline: none;
-          transition: box-shadow 0.15s, border-color 0.15s;
-        }
-        .field input:focus {
-          box-shadow: 0 0 0 2px #d8b9d6;
-        }
-        .field input.input-error {
-          border-color: #ef4444;
-          background: #fef2f2;
-        }
-        .error-text {
-          font-size: 0.78rem;
-          color: #ef4444;
-          margin-top: 0.15rem;
-        }
-        .pay-now-btn {
-          margin-top: 1.75rem;
-          width: 100%;
-          background: #9a5c97;
-          color: white;
-          font-weight: 600;
-          font-size: 1rem;
-          padding: 1rem;
-          border: none;
-          border-radius: 999px;
-          cursor: pointer;
-          transition: background 0.2s;
-        }
-        .pay-now-btn:hover {
-          background: #450043;
-        }
-        .status-card {
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-          text-align: center;
-          padding: 4rem 3rem;
-        }
-        .status-circle {
-          width: 112px;
-          height: 112px;
-          border-radius: 50%;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          margin-bottom: 1.75rem;
-        }
-        .status-circle.success {
-          background: #dcfce7;
-          color: #22c55e;
-        }
-        .status-circle.failed {
-          background: #fee2e2;
-          color: #ef4444;
-        }
-        .status-card h2 {
-          font-size: 1.4rem;
-          font-weight: 600;
-          color: #333;
-          margin-bottom: 0.6rem;
-        }
-        .status-sub {
-          font-size: 0.9rem;
-          color: #999;
-          margin-bottom: 2.25rem;
-          white-space: pre-line;
-        }
-        .back-home-btn {
-          display: flex;
-          align-items: center;
-          gap: 0.4rem;
-          background: #9a5c97;
-          color: white;
-          font-weight: 600;
-          font-size: 0.9rem;
-          padding: 0.85rem 2.25rem;
-          border: none;
-          border-radius: 999px;
-          cursor: pointer;
-          transition: background 0.2s;
-        }
-        .back-home-btn:hover {
-          background: #450043;
-        }
-      `}</style>
-    </div>
+              </button>
+            </Card>
+          ))}
+        </div>
+      )}
+    </AppShell>
   )
 }

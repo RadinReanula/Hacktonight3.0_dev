@@ -1,335 +1,379 @@
 'use client'
 
-import Image from 'next/image'
+import { zodResolver } from '@hookform/resolvers/zod'
+import { useMutation, useQuery } from '@tanstack/react-query'
+import { ArrowLeft, Loader2 } from 'lucide-react'
+import Link from 'next/link'
 import { useState } from 'react'
-import Sidebar from '@/components/sidebar'
+import { Controller, useForm } from 'react-hook-form'
+import { z } from 'zod'
+import { AppShell } from '@/components/shell/app-shell'
+import { PageHeader } from '@/components/shell/page-header'
+import { StatusScreen } from '@/components/shell/status-screen'
+import { Button } from '@/components/ui/button'
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle
+} from '@/components/ui/card'
+import { Field, FieldError, FieldLabel } from '@/components/ui/field'
+import { Input } from '@/components/ui/input'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue
+} from '@/components/ui/select'
+import { fetchAccounts } from '@/lib/api/accounts'
+import { postTransfer } from '@/lib/api/transfer'
+import { transferFormSchema } from '@/lib/transfers/schemas'
 
-type Errors = Partial<{
-  amount: string
-  accountNumber: string
-  accountName: string
-  bank: string
-}>
+const pinSchema = z.object({
+  pin: z
+    .string()
+    .trim()
+    .regex(/^\d{4}$/, 'PIN must be exactly 4 digits.')
+})
 
-export default function Home() {
-  const [amount, setAmount] = useState('')
-  const [accountNumber, setAccountNumber] = useState('')
-  const [accountName, setAccountName] = useState('')
-  const [bank, setBank] = useState('')
-  const [description, setDescription] = useState('')
-  const [errors, setErrors] = useState<Errors>({})
-  const [step, setStep] = useState<'form' | 'confirm' | 'success' | 'failure'>(
-    'form'
-  )
-  const [confirmation, setConfirmation] = useState<string | null>(null)
+type TransferFormValues = z.infer<typeof transferFormSchema>
+type PinValues = z.infer<typeof pinSchema>
 
-  function validate() {
-    const e: Errors = {}
-    if (!amount) e.amount = 'Amount is required'
-    else if (Number(amount) <= 0 || isNaN(Number(amount)))
-      e.amount = 'Enter a valid positive amount'
+type Step = 'form' | 'confirm' | 'result'
 
-    if (!accountNumber) e.accountNumber = 'Account number is required'
-    else if (!/^\d{6,}$/.test(accountNumber))
-      e.accountNumber = 'Enter a valid account number'
+function formatCurrency(value: number) {
+  return new Intl.NumberFormat('en-LK', {
+    style: 'currency',
+    currency: 'LKR',
+    minimumFractionDigits: 2
+  }).format(value)
+}
 
-    if (!accountName) e.accountName = 'Account name is required'
+export default function BankTransferPage() {
+  const [step, setStep] = useState<Step>('form')
+  const [pendingTransfer, setPendingTransfer] =
+    useState<TransferFormValues | null>(null)
+  const [result, setResult] = useState<{
+    variant: 'success' | 'error'
+    title: string
+    description?: string
+    transactionId?: number
+  } | null>(null)
 
-    if (!bank) e.bank = 'Select a bank'
+  const accountsQuery = useQuery({
+    queryKey: ['accounts'],
+    queryFn: fetchAccounts
+  })
 
-    setErrors(e)
-    return Object.keys(e).length === 0
-  }
-
-  function handleNext(e: React.FormEvent) {
-    e.preventDefault()
-    if (validate()) {
-      // show confirmation step first
-      setStep('confirm')
+  const form = useForm<TransferFormValues>({
+    resolver: zodResolver(transferFormSchema),
+    defaultValues: {
+      fromAccount: '',
+      toAccount: '',
+      amount: undefined,
+      description: ''
     }
+  })
+
+  const pinForm = useForm<PinValues>({
+    resolver: zodResolver(pinSchema),
+    defaultValues: { pin: '' }
+  })
+
+  const transferMutation = useMutation({
+    mutationFn: postTransfer,
+    onSuccess: (data) => {
+      setResult({
+        variant: 'success',
+        title: 'Transfer successful',
+        description: `Your transfer of ${formatCurrency(data.transaction.amount)} was completed.`,
+        transactionId: data.transaction.id
+      })
+      setStep('result')
+    },
+    onError: (error) => {
+      setResult({
+        variant: 'error',
+        title: 'Transfer failed',
+        description:
+          error instanceof Error
+            ? error.message
+            : 'Something went wrong. Please try again.'
+      })
+      setStep('result')
+    }
+  })
+
+  function onFormSubmit(values: TransferFormValues) {
+    setPendingTransfer(values)
+    pinForm.reset({ pin: '' })
+    setStep('confirm')
   }
 
-  function handleTransfer(e: React.FormEvent) {
-    e.preventDefault()
-    // simulate transfer completion and show success page
-    const conf = String(Math.floor(10000000 + Math.random() * 89999999))
-    setConfirmation(conf)
-    setStep('success' as any)
+  function onConfirmSubmit(values: PinValues) {
+    if (!pendingTransfer) return
+    transferMutation.mutate({
+      ...pendingTransfer,
+      pin: values.pin
+    })
+  }
+
+  function resetWizard() {
+    form.reset()
+    pinForm.reset()
+    setPendingTransfer(null)
+    setResult(null)
+    setStep('form')
+  }
+
+  if (step === 'result' && result) {
+    return (
+      <AppShell>
+        <PageHeader title="Bank Transfer" />
+        <Card className="mx-auto max-w-lg">
+          <CardContent className="pt-6">
+            <StatusScreen
+              variant={result.variant}
+              title={result.title}
+              description={
+                result.transactionId
+                  ? `${result.description} Confirmation #${result.transactionId}.`
+                  : result.description
+              }
+            >
+              <div className="flex flex-col gap-2 sm:flex-row">
+                <Button className="flex-1" onClick={resetWizard}>
+                  Make another transfer
+                </Button>
+                <Button asChild variant="outline" className="flex-1">
+                  <Link href="/dashboard">Back to dashboard</Link>
+                </Button>
+              </div>
+            </StatusScreen>
+          </CardContent>
+        </Card>
+      </AppShell>
+    )
+  }
+
+  if (step === 'confirm' && pendingTransfer) {
+    const fromAccount = accountsQuery.data?.find(
+      (a) => a.accountNumber === pendingTransfer.fromAccount
+    )
+
+    return (
+      <AppShell>
+        <PageHeader title="Bank Transfer" description="Confirm your transfer" />
+        <Card className="mx-auto max-w-lg">
+          <CardHeader>
+            <CardTitle>Review transfer</CardTitle>
+            <CardDescription>
+              Enter your PIN to authorize this transfer.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="flex flex-col gap-6">
+            <dl className="grid gap-3 text-sm sm:grid-cols-2">
+              <div>
+                <dt className="text-muted-foreground">From</dt>
+                <dd className="font-medium">
+                  {fromAccount?.accountName ?? pendingTransfer.fromAccount}
+                </dd>
+                <dd className="text-muted-foreground text-xs">
+                  {pendingTransfer.fromAccount}
+                </dd>
+              </div>
+              <div>
+                <dt className="text-muted-foreground">To</dt>
+                <dd className="font-medium">{pendingTransfer.toAccount}</dd>
+              </div>
+              <div>
+                <dt className="text-muted-foreground">Amount</dt>
+                <dd className="font-medium">
+                  {formatCurrency(pendingTransfer.amount)}
+                </dd>
+              </div>
+              {pendingTransfer.description ? (
+                <div className="sm:col-span-2">
+                  <dt className="text-muted-foreground">Description</dt>
+                  <dd className="font-medium">{pendingTransfer.description}</dd>
+                </div>
+              ) : null}
+            </dl>
+
+            <form
+              className="flex flex-col gap-4"
+              onSubmit={pinForm.handleSubmit(onConfirmSubmit)}
+              noValidate
+            >
+              <Field>
+                <FieldLabel htmlFor="pin">4-digit PIN</FieldLabel>
+                <Input
+                  id="pin"
+                  type="password"
+                  inputMode="numeric"
+                  autoComplete="off"
+                  maxLength={4}
+                  aria-invalid={Boolean(pinForm.formState.errors.pin)}
+                  {...pinForm.register('pin')}
+                />
+                <FieldError>{pinForm.formState.errors.pin?.message}</FieldError>
+              </Field>
+
+              <div className="flex flex-col gap-2 sm:flex-row">
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="flex-1"
+                  onClick={() => setStep('form')}
+                  disabled={transferMutation.isPending}
+                >
+                  <ArrowLeft className="size-4" />
+                  Back
+                </Button>
+                <Button
+                  type="submit"
+                  className="flex-1"
+                  disabled={transferMutation.isPending}
+                >
+                  {transferMutation.isPending ? (
+                    <>
+                      <Loader2 className="size-4 animate-spin" />
+                      Processing...
+                    </>
+                  ) : (
+                    'Confirm transfer'
+                  )}
+                </Button>
+              </div>
+            </form>
+          </CardContent>
+        </Card>
+      </AppShell>
+    )
   }
 
   return (
-    <div className="min-h-screen bg-bg-light font-geist p-0">
-      <div className="flex min-h-screen">
-        <Sidebar />
-
-        <main className="flex-1 p-12">
-          <div className="flex items-center justify-between mb-6">
-            <h2 className="text-2xl font-semibold">Bank Transfer</h2>
-            <div className="flex items-center gap-3">
-              <button className="topbar-icon" aria-label="search">
-                <img src="/search.png" alt="search" />
-              </button>
-              <button className="topbar-icon" aria-label="notifications">
-                <img src="/notification.png" alt="notifications" />
-              </button>
-              <div className="w-12 h-12 rounded-full overflow-hidden border-2 border-gray-200">
-                <img
-                  src="/avatar.png"
-                  alt="avatar"
-                  className="w-full h-full object-cover bg-white"
-                />
-              </div>
+    <AppShell>
+      <PageHeader
+        title="Bank Transfer"
+        description="Send money to another Nova Bank account"
+      />
+      <Card className="mx-auto max-w-lg">
+        <CardHeader>
+          <CardTitle>Transfer details</CardTitle>
+          <CardDescription>
+            Choose your account and enter the recipient details.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {accountsQuery.isLoading ? (
+            <div className="flex items-center justify-center py-8 text-muted-foreground text-sm">
+              <Loader2 className="mr-2 size-4 animate-spin" />
+              Loading accounts...
             </div>
-          </div>
-          {step === 'form' ? (
-            <form onSubmit={handleNext} className="transfer-card p-8">
-              <div className="grid grid-cols-12 gap-y-6 gap-x-8 items-center">
-                <label className="col-span-3 text-gray-700">Amount :</label>
-                <div className="col-span-9">
-                  <input
-                    aria-label="amount"
-                    value={amount}
-                    onChange={(e) => setAmount(e.target.value)}
-                    className="underline-input"
-                    placeholder=""
-                  />
-                  {errors.amount && (
-                    <div className="text-sm text-red-600 mt-1">
-                      {errors.amount}
-                    </div>
-                  )}
-                </div>
-
-                <label className="col-span-3 text-gray-700">
-                  Account Number :
-                </label>
-                <div className="col-span-9">
-                  <input
-                    value={accountNumber}
-                    onChange={(e) => setAccountNumber(e.target.value)}
-                    className="underline-input"
-                  />
-                  {errors.accountNumber && (
-                    <div className="text-sm text-red-600 mt-1">
-                      {errors.accountNumber}
-                    </div>
-                  )}
-                </div>
-
-                <label className="col-span-3 text-gray-700">
-                  Account Name :
-                </label>
-                <div className="col-span-9">
-                  <input
-                    value={accountName}
-                    onChange={(e) => setAccountName(e.target.value)}
-                    className="underline-input"
-                  />
-                  {errors.accountName && (
-                    <div className="text-sm text-red-600 mt-1">
-                      {errors.accountName}
-                    </div>
-                  )}
-                </div>
-
-                <label className="col-span-3 text-gray-700">
-                  Select Bank :
-                </label>
-                <div className="col-span-9">
-                  <select
-                    value={bank}
-                    onChange={(e) => setBank(e.target.value)}
-                    className="underline-input bg-transparent"
-                  >
-                    <option value="">Choose bank</option>
-                    <option>First National</option>
-                    <option>Global Trust</option>
-                    <option>Union Bank</option>
-                  </select>
-                  {errors.bank && (
-                    <div className="text-sm text-red-600 mt-1">
-                      {errors.bank}
-                    </div>
-                  )}
-                </div>
-
-                <label className="col-span-3 text-gray-700">
-                  Description :
-                </label>
-                <div className="col-span-9">
-                  <textarea
-                    value={description}
-                    onChange={(e) => setDescription(e.target.value)}
-                    rows={4}
-                    className="description-box"
-                  />
-                </div>
-              </div>
-
-              <div className="flex justify-center mt-10">
-                <button type="submit" className="next-btn">
-                  NEXT
-                </button>
-              </div>
-            </form>
-          ) : step === 'confirm' ? (
-            <div className="transfer-card p-8">
-              <h3 className="text-center text-2xl font-semibold mb-6">
-                Confirm Transfer
-              </h3>
-              <div className="bg-white rounded-lg p-6 shadow-lg max-w-xl mx-auto text-center">
-                <p className="mb-4">
-                  Confirm your transfer of <strong>Rs. {amount || '0'}</strong>{' '}
-                  to <strong>{accountName || 'recipient'}</strong>
-                </p>
-                <p className="text-sm text-gray-600 mb-6">
-                  Additional fee of Rs.50 will be charged.
-                </p>
-                <div className="mb-6">
-                  <img
-                    src="/transfer-illustration.png"
-                    alt="illustration"
-                    className="mx-auto"
-                  />
-                </div>
-                <div className="flex justify-center gap-4">
-                  <button
-                    onClick={() => setStep('failure')}
-                    className="next-btn"
-                    aria-label="back"
-                  >
-                    BACK
-                  </button>
-                  <button
-                    onClick={handleTransfer}
-                    className="next-btn transfer-btn"
-                  >
-                    TRANSFER
-                  </button>
-                </div>
-              </div>
-            </div>
-          ) : step === 'success' ? (
-            // success page
-            <div className="transfer-card p-8">
-              <div className="relative">
-                <div className="success-check inside-check">
-                  <svg
-                    viewBox="0 0 120 120"
-                    width="100"
-                    height="100"
-                    xmlns="http://www.w3.org/2000/svg"
-                  >
-                    <defs>
-                      <radialGradient id="g" cx="50%" cy="50%">
-                        <stop offset="0%" stopColor="#28a745" />
-                        <stop offset="100%" stopColor="#138a3e" />
-                      </radialGradient>
-                    </defs>
-                    <circle cx="60" cy="60" r="50" fill="#dff7e7" />
-                    <circle cx="60" cy="60" r="40" fill="#10a654" />
-                    <path
-                      d="M38 62 L54 78 L82 42"
-                      stroke="#fff"
-                      strokeWidth="8"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      fill="none"
-                    />
-                  </svg>
-                </div>
-
-                <h3 className="text-center text-2xl font-semibold mb-4">
-                  Transfer Successful!
-                </h3>
-                <p className="text-center text-sm text-gray-500 mb-10">
-                  Confirmation number : {confirmation}
-                </p>
-
-                <div className="flex justify-center">
-                  <button
-                    onClick={() => {
-                      // go back to home (reset form)
-                      setAmount('')
-                      setAccountNumber('')
-                      setAccountName('')
-                      setBank('')
-                      setDescription('')
-                      setErrors({})
-                      setConfirmation(null)
-                      setStep('form')
-                    }}
-                    className="transfer-btn success-btn"
-                  >
-                    <span className="mr-3">‹</span> BACK TO HOME
-                  </button>
-                </div>
-              </div>
-            </div>
+          ) : accountsQuery.isError ? (
+            <StatusScreen
+              variant="error"
+              title="Could not load accounts"
+              description={
+                accountsQuery.error instanceof Error
+                  ? accountsQuery.error.message
+                  : 'Please try again.'
+              }
+            >
+              <Button onClick={() => accountsQuery.refetch()}>Retry</Button>
+            </StatusScreen>
           ) : (
-            // failure page
-            <div className="transfer-card p-8">
-              <div className="relative">
-                <div className="success-check inside-check">
-                  <svg
-                    viewBox="0 0 120 120"
-                    width="220"
-                    height="220"
-                    xmlns="http://www.w3.org/2000/svg"
-                  >
-                    <circle cx="60" cy="60" r="50" fill="#ffdede" />
-                    <circle cx="60" cy="60" r="40" fill="#ffb6b6" />
-                    <path
-                      d="M60 30 L93 86 L27 86 Z"
-                      fill="#ff4d4f"
-                      stroke="#fff"
-                      strokeWidth="4"
-                      strokeLinejoin="round"
-                    />
-                    <text
-                      x="60"
-                      y="78"
-                      textAnchor="middle"
-                      fontSize="36"
-                      fill="#fff"
-                      fontWeight="700"
-                    >
-                      !
-                    </text>
-                  </svg>
-                </div>
+            <form
+              className="flex flex-col gap-4"
+              onSubmit={form.handleSubmit(onFormSubmit)}
+              noValidate
+            >
+              <Field>
+                <FieldLabel htmlFor="fromAccount">From account</FieldLabel>
+                <Controller
+                  control={form.control}
+                  name="fromAccount"
+                  render={({ field }) => (
+                    <Select value={field.value} onValueChange={field.onChange}>
+                      <SelectTrigger
+                        id="fromAccount"
+                        aria-invalid={Boolean(
+                          form.formState.errors.fromAccount
+                        )}
+                      >
+                        <SelectValue placeholder="Select account" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {accountsQuery.data?.map((account) => (
+                          <SelectItem
+                            key={account.id}
+                            value={account.accountNumber}
+                          >
+                            {account.accountName} ({account.accountNumber})
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  )}
+                />
+                <FieldError>
+                  {form.formState.errors.fromAccount?.message}
+                </FieldError>
+              </Field>
 
-                <h3 className="text-center text-2xl font-semibold mb-4">
-                  Transaction Failed!
-                </h3>
-                <p className="text-center text-sm text-gray-500 mb-6">
-                  Insufficient Balance
-                  <br />
-                  Current Balance is: Rs.500
-                </p>
+              <Field>
+                <FieldLabel htmlFor="toAccount">To account number</FieldLabel>
+                <Input
+                  id="toAccount"
+                  inputMode="numeric"
+                  autoComplete="off"
+                  aria-invalid={Boolean(form.formState.errors.toAccount)}
+                  {...form.register('toAccount')}
+                />
+                <FieldError>
+                  {form.formState.errors.toAccount?.message}
+                </FieldError>
+              </Field>
 
-                <div className="flex justify-center">
-                  <button
-                    onClick={() => {
-                      setAmount('')
-                      setAccountNumber('')
-                      setAccountName('')
-                      setBank('')
-                      setDescription('')
-                      setErrors({})
-                      setConfirmation(null)
-                      setStep('form')
-                    }}
-                    className="transfer-btn success-btn"
-                  >
-                    <span className="mr-3">‹</span> BACK TO HOME
-                  </button>
-                </div>
-              </div>
-            </div>
+              <Field>
+                <FieldLabel htmlFor="amount">Amount (LKR)</FieldLabel>
+                <Input
+                  id="amount"
+                  type="number"
+                  step="0.01"
+                  min="0.01"
+                  inputMode="decimal"
+                  aria-invalid={Boolean(form.formState.errors.amount)}
+                  {...form.register('amount', { valueAsNumber: true })}
+                />
+                <FieldError>{form.formState.errors.amount?.message}</FieldError>
+              </Field>
+
+              <Field>
+                <FieldLabel htmlFor="description">
+                  Description (optional)
+                </FieldLabel>
+                <Input
+                  id="description"
+                  maxLength={140}
+                  aria-invalid={Boolean(form.formState.errors.description)}
+                  {...form.register('description')}
+                />
+                <FieldError>
+                  {form.formState.errors.description?.message}
+                </FieldError>
+              </Field>
+
+              <Button type="submit" className="mt-2">
+                Continue
+              </Button>
+            </form>
           )}
-        </main>
-      </div>
-    </div>
+        </CardContent>
+      </Card>
+    </AppShell>
   )
 }

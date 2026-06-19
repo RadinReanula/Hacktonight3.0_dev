@@ -1,8 +1,8 @@
 import { HttpError, requireSession, verifyPin } from '@/lib/auth'
 import { getClient, serviceFailure } from '@/lib/db'
-import { TransferError, transferErrorResponse } from '@/lib/transfers/errors'
-import { executeTransfer } from '@/lib/transfers/execute-transfer'
-import { transferSchema } from '@/lib/transfers/schemas'
+import { PayBillError, payBillErrorResponse } from '@/lib/pay-bills/errors'
+import { executePayBill } from '@/lib/pay-bills/execute-pay-bill'
+import { payBillSchema } from '@/lib/pay-bills/schemas'
 
 export async function POST(request: Request) {
   const client = await getClient()
@@ -10,16 +10,16 @@ export async function POST(request: Request) {
   try {
     const session = await requireSession()
     const body = await request.json().catch(() => ({}))
-    const parsed = transferSchema.safeParse(body)
+    const parsed = payBillSchema.safeParse(body)
 
     if (!parsed.success) {
       return Response.json(
-        { ok: false, message: 'Invalid transfer details.' },
+        { ok: false, message: 'Invalid payment details.' },
         { status: 400 }
       )
     }
 
-    const { fromAccount, toAccount, amount, description, pin } = parsed.data
+    const { fromAccount, billerId, reference, amount, pin } = parsed.data
 
     const pinValid = await verifyPin(fromAccount, pin)
     if (!pinValid) {
@@ -31,11 +31,11 @@ export async function POST(request: Request) {
 
     await client.query('BEGIN')
 
-    const transaction = await executeTransfer(client, {
+    const transaction = await executePayBill(client, {
       fromAccount,
-      toAccount,
+      billerId,
+      reference,
       amount,
-      description,
       pin,
       userId: session.userId
     })
@@ -58,7 +58,7 @@ export async function POST(request: Request) {
     await client.query('ROLLBACK').catch(() => {})
 
     if (reason instanceof HttpError) return reason.toResponse()
-    if (reason instanceof TransferError) return transferErrorResponse(reason)
+    if (reason instanceof PayBillError) return payBillErrorResponse(reason)
     return serviceFailure(reason)
   } finally {
     client.release()
