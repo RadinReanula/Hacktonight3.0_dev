@@ -8,93 +8,99 @@
 :root {
   --radius: 0.625rem;
 
-  --background: oklch(0.99 0.003 300);
-  --foreground: oklch(0.18 0.02 305);
+  --background: oklch(0.985 0.004 250);
+  --foreground: oklch(0.21 0.03 257);
 
   --card: oklch(1 0 0);
-  --card-foreground: oklch(0.18 0.02 305);
+  --card-foreground: oklch(0.21 0.03 257);
 
   --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.18 0.02 305);
+  --popover-foreground: oklch(0.21 0.03 257);
 
-  --primary: oklch(0.42 0.17 311);
-  --primary-foreground: oklch(0.985 0.005 300);
+  --primary: oklch(0.47 0.14 257);
+  --primary-foreground: oklch(0.985 0.005 250);
 
-  --secondary: oklch(0.96 0.01 305);
-  --secondary-foreground: oklch(0.28 0.05 308);
+  --secondary: oklch(0.96 0.012 252);
+  --secondary-foreground: oklch(0.3 0.05 257);
 
-  --muted: oklch(0.96 0.008 305);
-  --muted-foreground: oklch(0.52 0.03 305);
+  --muted: oklch(0.965 0.008 252);
+  --muted-foreground: oklch(0.52 0.03 256);
 
-  --accent: oklch(0.93 0.04 312);
-  --accent-foreground: oklch(0.28 0.07 311);
+  --accent: oklch(0.93 0.03 250);
+  --accent-foreground: oklch(0.33 0.08 257);
 
-  --success: oklch(0.62 0.16 150);
-  --success-foreground: oklch(0.985 0.005 150);
+  --success: oklch(0.62 0.14 158);
+  --success-foreground: oklch(0.985 0.005 158);
 
-  --destructive: oklch(0.58 0.23 27);
+  --destructive: oklch(0.58 0.22 27);
   --destructive-foreground: oklch(0.985 0.01 27);
 
-  --border: oklch(0.9 0.01 305);
-  --input: oklch(0.9 0.01 305);
-  --ring: oklch(0.42 0.17 311);
+  --border: oklch(0.91 0.008 256);
+  --input: oklch(0.91 0.008 256);
+  --ring: oklch(0.47 0.14 257);
 
-  --chart-1: oklch(0.55 0.2 311);
-  --chart-2: oklch(0.6 0.13 200);
-  --chart-3: oklch(0.65 0.17 150);
-  --chart-4: oklch(0.7 0.16 70);
-  --chart-5: oklch(0.62 0.21 20);
+  --chart-1: oklch(0.5 0.16 257);
+  --chart-2: oklch(0.6 0.12 220);
+  --chart-3: oklch(0.66 0.13 185);
+  --chart-4: oklch(0.68 0.13 150);
+  --chart-5: oklch(0.62 0.16 295);
 
-  --sidebar: oklch(0.27 0.09 312);
-  --sidebar-foreground: oklch(0.97 0.01 300);
-  --sidebar-primary: oklch(0.55 0.18 311);
+  --sidebar: oklch(0.24 0.045 260);
+  --sidebar-foreground: oklch(0.96 0.01 250);
+  --sidebar-primary: oklch(0.55 0.15 257);
   --sidebar-primary-foreground: oklch(0.99 0 0);
-  --sidebar-accent: oklch(0.38 0.12 311);
+  --sidebar-accent: oklch(0.34 0.06 258);
   --sidebar-accent-foreground: oklch(0.99 0 0);
-  --sidebar-border: oklch(0.38 0.1 311);
-  --sidebar-ring: oklch(0.55 0.18 311);
+  --sidebar-border: oklch(0.34 0.05 258);
+  --sidebar-ring: oklch(0.55 0.15 257);
 }
 
 .dark {
-  --background: oklch(0.16 0.02 305);
-  --foreground: oklch(0.97 0.01 300);
+  --background: oklch(0.17 0.018 260);
+  --foreground: oklch(0.96 0.01 250);
 
-  --card: oklch(0.21 0.03 308);
-  --card-foreground: oklch(0.97 0.01 300);
+  --card: oklch(0.21 0.025 260);
+  --card-foreground: oklch(0.96 0.01 250);
 
-  --popover: oklch(0.21 0.03 308);
-  --popover-foreground: oklch(0.97 0.01 300);
+  --popover: oklch(0.21 0.025 260);
+  --popover-foreground: oklch(0.96 0.01 250);
 
-  --primary: oklch(0.72 0.16 311);
-  --primary-foreground: oklch(0.18 0.04 311);
+  --primary: oklch(0.65 0.14 257);
+  --primary-foreground: oklch(0.17 0.03 260);
 
-  --secondary: oklch(0.28 0.04 308);
-  --secondary-foreground: oklch(0.97 0.01 300);
+  --secondary: oklch(0.27 0.03 260);
+  --secondary-foreground: oklch(0.96 0.01 250);
 
-  --muted: oklch(0.28 0.03 308);
-  --muted-foreground: oklch(0.7 0.03 305);
+  --muted: oklch(0.27 0.028 260);
+  --muted-foreground: oklch(0.71 0.03 256);
 
-  --accent: oklch(0.34 0.07 311);
-  --accent-foreground: oklch(0.97 0.01 300);
+  --accent: oklch(0.32 0.05 258);
+  --accent-foreground: oklch(0.96 0.01 250);
 
-  --success: oklch(0.68 0.15 150);
-  --success-foreground: oklch(0.16 0.03 150);
+  --success: oklch(0.68 0.14 158);
+  --success-foreground: oklch(0.16 0.03 158);
 
   --destructive: oklch(0.7 0.19 22);
   --destructive-foreground: oklch(0.16 0.03 22);
 
   --border: oklch(1 0 0 / 12%);
   --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.72 0.16 311);
+  --ring: oklch(0.65 0.14 257);
 
-  --sidebar: oklch(0.21 0.05 311);
-  --sidebar-foreground: oklch(0.97 0.01 300);
-  --sidebar-primary: oklch(0.72 0.16 311);
-  --sidebar-primary-foreground: oklch(0.16 0.03 311);
-  --sidebar-accent: oklch(0.34 0.07 311);
-  --sidebar-accent-foreground: oklch(0.97 0.01 300);
+  --chart-1: oklch(0.62 0.15 257);
+  --chart-2: oklch(0.66 0.12 220);
+  --chart-3: oklch(0.7 0.13 185);
+  --chart-4: oklch(0.72 0.13 150);
+  --chart-5: oklch(0.68 0.15 295);
+
+  --sidebar: oklch(0.2 0.025 262);
+  --sidebar-foreground: oklch(0.96 0.01 250);
+  --sidebar-primary: oklch(0.65 0.14 257);
+  --sidebar-primary-foreground: oklch(0.16 0.03 260);
+  --sidebar-accent: oklch(0.32 0.05 258);
+  --sidebar-accent-foreground: oklch(0.96 0.01 250);
   --sidebar-border: oklch(1 0 0 / 12%);
-  --sidebar-ring: oklch(0.72 0.16 311);
+  --sidebar-ring: oklch(0.65 0.14 257);
 }
 
 @theme inline {
@@ -158,12 +164,86 @@
 }
 
 /* ------------------------------------------------------------------ */
+/* Glassmorphism + animated logo                                       */
+/* ------------------------------------------------------------------ */
+.glass-panel {
+  background-color: color-mix(in oklch, var(--color-card) 65%, transparent);
+  backdrop-filter: blur(16px) saturate(160%);
+  -webkit-backdrop-filter: blur(16px) saturate(160%);
+  border-color: color-mix(in oklch, var(--color-border) 60%, transparent);
+}
+
+@keyframes logo-float {
+  0%,
+  100% {
+    transform: translateY(0) scale(1);
+  }
+  50% {
+    transform: translateY(-2px) scale(1.04);
+  }
+}
+
+@keyframes logo-pillar {
+  0%,
+  100% {
+    opacity: 0.45;
+    transform: scaleY(0.78);
+  }
+  50% {
+    opacity: 1;
+    transform: scaleY(1);
+  }
+}
+
+@keyframes logo-dot {
+  0%,
+  100% {
+    opacity: 0.5;
+    transform: scale(0.75);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.2);
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .bank-logo {
+    transform-box: fill-box;
+    transform-origin: center;
+    animation: logo-float 3.2s ease-in-out infinite;
+  }
+  .bank-logo .pillar {
+    transform-box: fill-box;
+    transform-origin: bottom;
+    animation: logo-pillar 2s ease-in-out infinite;
+  }
+  .bank-logo .pillars .pillar:nth-child(1) {
+    animation-delay: 0s;
+  }
+  .bank-logo .pillars .pillar:nth-child(2) {
+    animation-delay: 0.18s;
+  }
+  .bank-logo .pillars .pillar:nth-child(3) {
+    animation-delay: 0.36s;
+  }
+  .bank-logo .pillars .pillar:nth-child(4) {
+    animation-delay: 0.54s;
+  }
+  .bank-logo .roof-dot {
+    transform-box: fill-box;
+    transform-origin: center;
+    animation: logo-dot 2s ease-in-out infinite;
+  }
+}
+
+/* ------------------------------------------------------------------ */
 /* LEGACY styles (retained until Members 2-4 migrate their pages).     */
 /* Do NOT build on these in new work; use the design tokens above.     */
 /* ------------------------------------------------------------------ */
 :root {
-  --sidebar-purple: rgba(58, 6, 59, 0.83);
-  --bg-light: #f3f2f2;
+  --sidebar-purple: oklch(0.24 0.045 260);
+  --bg-light: oklch(0.985 0.004 250);
   --card-bg: #ffffff;
 }
 
@@ -196,7 +276,7 @@
   font-size: 16px;
 }
 .underline-input:focus {
-  border-bottom-color: #b886b6;
+  border-bottom-color: var(--primary);
 }
 
 .description-box {
@@ -207,7 +287,7 @@
 }
 
 .next-btn {
-  background: #b886b6;
+  background: var(--primary);
   color: white;
   padding: 14px 40px;
   border-radius: 28px;
@@ -250,7 +330,7 @@
   width: 420px;
   height: 72px;
   border-radius: 36px;
-  background: linear-gradient(180deg, #b886b6, #9b5f90);
+  background: linear-gradient(180deg, var(--primary), var(--sidebar));
   color: #fff;
   font-weight: 900;
   font-size: 20px;
@@ -293,7 +373,7 @@
 
 .success-btn {
   width: 420px;
-  background: linear-gradient(180deg, #b886b6, #9b5f90);
+  background: linear-gradient(180deg, var(--primary), var(--sidebar));
   height: 64px;
   border-radius: 32px;
   color: #fff;

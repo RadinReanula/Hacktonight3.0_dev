@@ -2,7 +2,6 @@
 
 import {
   ArrowLeftRight,
-  CreditCard,
   FileText,
   HelpCircle,
   LayoutGrid,
@@ -15,6 +14,7 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import type { ComponentType } from 'react'
 import { LogoutButton } from '@/components/auth/logout-button'
+import { BankLogo } from '@/components/bank-logo'
 import { cn } from '@/lib/utils'
 
 type NavItem = {
@@ -44,7 +44,7 @@ export function Sidebar() {
           className="flex items-center gap-3 rounded-xl px-6 pt-6 outline-none transition-colors hover:opacity-90 focus-visible:ring-2 focus-visible:ring-sidebar-ring max-md:px-0 max-md:pt-0"
         >
           <div className="flex size-10 items-center justify-center rounded-xl bg-sidebar-primary text-sidebar-primary-foreground">
-            <CreditCard className="size-5" />
+            <BankLogo className="size-5" />
           </div>
           <span className="font-bold text-lg tracking-tight max-md:hidden">
             Nova Bank
@@ -93,7 +93,11 @@ export function Sidebar() {
             <HelpCircle className="size-5" />
           </Link>
           <div className="md:hidden">
-            <LogoutButton variant="sidebar" showLabel={false} className="w-auto px-2" />
+            <LogoutButton
+              variant="sidebar"
+              showLabel={false}
+              className="w-auto px-2"
+            />
           </div>
         </div>
       </div>

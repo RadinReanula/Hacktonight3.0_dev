@@ -2,6 +2,7 @@
 
 import { Bell, Search } from 'lucide-react'
 import { LogoutButton } from '@/components/auth/logout-button'
+import { ThemeToggle } from '@/components/theme-toggle'
 import { cn } from '@/lib/utils'
 
 type TopBarProps = {
@@ -22,7 +23,7 @@ export function TopBar({ userName, className }: TopBarProps) {
   return (
     <header
       className={cn(
-        'flex items-center justify-between gap-4 border-b bg-card px-6 py-4',
+        'glass-panel sticky top-0 z-30 flex items-center justify-between gap-4 border-b px-6 py-4',
         className
       )}
     >
@@ -38,6 +39,7 @@ export function TopBar({ userName, className }: TopBarProps) {
 
       <div className="ml-auto flex items-center gap-3">
         <LogoutButton variant="topbar" />
+        <ThemeToggle />
         <button
           type="button"
           aria-label="Notifications"

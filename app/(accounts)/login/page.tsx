@@ -1,7 +1,7 @@
 'use client'
 
 import { zodResolver } from '@hookform/resolvers/zod'
-import { Loader2 } from 'lucide-react'
+import { Loader2, Lock, ShieldCheck } from 'lucide-react'
 import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { Suspense, useState } from 'react'
@@ -86,8 +86,11 @@ function LoginForm() {
   }
 
   return (
-    <Card>
+    <Card className="glass-panel border shadow-2xl">
       <CardHeader className="text-center">
+        <div className="mx-auto mb-2 flex size-12 items-center justify-center rounded-2xl bg-primary/10 text-primary ring-1 ring-primary/20">
+          <Lock className="size-5" />
+        </div>
         <CardTitle className="text-2xl">Welcome back</CardTitle>
         <CardDescription>Sign in to your Nova Bank account</CardDescription>
       </CardHeader>
@@ -187,6 +190,11 @@ function LoginForm() {
             </Link>
           </p>
         </form>
+
+        <div className="mt-6 flex items-center justify-center gap-2 border-border/60 border-t pt-4 text-muted-foreground text-xs">
+          <ShieldCheck className="size-4 text-success" />
+          <span>Secured with 256-bit encryption</span>
+        </div>
       </CardContent>
     </Card>
   )
