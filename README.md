@@ -74,6 +74,21 @@ docker compose down -v
 docker compose up --build --watch
 ```
 
+## Email verification (Resend)
+
+New sign-ups must verify email before login. Configure in `.env.local`:
+
+```env
+RESEND_API_KEY=re_your_key_here
+RESEND_FROM_EMAIL=onboarding@resend.dev
+APP_BASE_URL=http://localhost:3001
+EMAIL_DISABLE_SEND=false
+```
+
+- Set `EMAIL_DISABLE_SEND=true` for local testing without sending mail (verification links are logged in the app container).
+- Verify a custom domain in Resend to email arbitrary addresses in production.
+- After pulling, run `docker compose exec htn26-challenge-dev npm ci --ignore-scripts` if the app reports `Can't resolve 'resend'`.
+
 ## Team development
 
 Per-member implementation plans live in [`docs/team-plans`](docs/team-plans/README.md).

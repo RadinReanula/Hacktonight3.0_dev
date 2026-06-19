@@ -1,12 +1,20 @@
 import { type NextRequest, NextResponse } from 'next/server'
 import { SESSION_COOKIE, verifySessionToken } from '@/lib/session'
 
-const PUBLIC_PAGES = new Set(['/', '/login', '/sign-up', '/reset-password'])
+const PUBLIC_PAGES = new Set([
+  '/',
+  '/login',
+  '/sign-up',
+  '/sign-up/check-email',
+  '/reset-password'
+])
 
 const PUBLIC_API = [
   '/api/auth/login',
   '/api/auth/register',
   '/api/auth/logout',
+  '/api/auth/verify-email',
+  '/api/auth/resend-verification',
   '/api/health'
 ]
 

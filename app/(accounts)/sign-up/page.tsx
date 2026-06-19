@@ -57,8 +57,9 @@ export default function SignUpPage() {
         email: values.email,
         password: values.password
       })
-      router.replace('/dashboard')
-      router.refresh()
+      router.replace(
+        `/sign-up/check-email?email=${encodeURIComponent(values.email)}`
+      )
     } catch (err) {
       setFormError(err instanceof Error ? err.message : 'Sign up failed.')
     }

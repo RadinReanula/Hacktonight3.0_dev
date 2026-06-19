@@ -5,6 +5,15 @@ export type AuthUser = {
   fullName?: string
 }
 
+export class AuthRequestError extends Error {
+  code?: string
+  constructor(message: string, code?: string) {
+    super(message)
+    this.name = 'AuthRequestError'
+    this.code = code
+  }
+}
+
 async function postJson<T>(url: string, body: unknown): Promise<T> {
   const res = await fetch(url, {
     method: 'POST',
@@ -14,9 +23,13 @@ async function postJson<T>(url: string, body: unknown): Promise<T> {
   const data = (await res.json().catch(() => ({}))) as {
     ok?: boolean
     message?: string
+    code?: string
   } & T
   if (!res.ok || !data.ok) {
-    throw new Error(data.message || 'Something went wrong. Please try again.')
+    throw new AuthRequestError(
+      data.message || 'Something went wrong. Please try again.',
+      data.code
+    )
   }
   return data
 }
@@ -31,7 +44,18 @@ export function registerRequest(input: {
   email: string
   password: string
 }) {
-  return postJson<{ ok: true; user: AuthUser }>('/api/auth/register', input)
+  return postJson<{
+    ok: true
+    needsVerification: true
+    message: string
+  }>('/api/auth/register', input)
+}
+
+export function resendVerificationRequest(email: string) {
+  return postJson<{ ok: true; message: string }>(
+    '/api/auth/resend-verification',
+    { email }
+  )
 }
 
 export function logoutRequest() {

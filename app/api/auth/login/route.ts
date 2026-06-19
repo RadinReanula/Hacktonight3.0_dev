@@ -14,6 +14,7 @@ type UserRow = {
   role: string
   full_name: string
   password_hash: string
+  email_verified: boolean
 }
 
 export async function POST(request: Request) {
@@ -36,7 +37,8 @@ export async function POST(request: Request) {
 
     const { username, password } = parsed.data
     const result = await query<UserRow>(
-      'SELECT id, username, role, full_name, password_hash FROM users WHERE username = $1',
+      `SELECT id, username, role, full_name, password_hash, email_verified
+       FROM users WHERE username = $1`,
       [username]
     )
     const user = result.rows[0]
@@ -45,6 +47,17 @@ export async function POST(request: Request) {
       return Response.json(
         { ok: false, message: 'Invalid username or password.' },
         { status: 401 }
+      )
+    }
+
+    if (!user.email_verified) {
+      return Response.json(
+        {
+          ok: false,
+          code: 'EMAIL_NOT_VERIFIED',
+          message: 'Please verify your email before signing in.'
+        },
+        { status: 403 }
       )
     }
 

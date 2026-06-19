@@ -17,7 +17,7 @@ import {
 } from '@/components/ui/card'
 import { Field, FieldError, FieldLabel } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
-import { loginRequest } from '@/lib/api/auth'
+import { AuthRequestError, loginRequest, resendVerificationRequest } from '@/lib/api/auth'
 
 const loginSchema = z.object({
   username: z.string().min(1, 'Username is required.'),
@@ -30,6 +30,19 @@ function LoginForm() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const [formError, setFormError] = useState<string | null>(null)
+  const [showResend, setShowResend] = useState(false)
+  const [resendEmailInput, setResendEmailInput] = useState('')
+  const [resendMessage, setResendMessage] = useState<string | null>(null)
+  const [resending, setResending] = useState(false)
+  const [banner] = useState<string | null>(() => {
+    if (searchParams.get('verified') === '1') {
+      return 'Email verified. You can sign in now.'
+    }
+    if (searchParams.get('verify') === 'invalid') {
+      return 'Verification link is invalid or expired. Request a new one below.'
+    }
+    return null
+  })
 
   const {
     register,
@@ -39,13 +52,36 @@ function LoginForm() {
 
   async function onSubmit(values: LoginValues) {
     setFormError(null)
+    setShowResend(false)
+    setResendMessage(null)
     try {
       await loginRequest(values)
       const next = searchParams.get('next')
-      router.replace(next && next.startsWith('/') ? next : '/dashboard')
+      router.replace(next?.startsWith('/') ? next : '/dashboard')
       router.refresh()
     } catch (err) {
+      if (err instanceof AuthRequestError && err.code === 'EMAIL_NOT_VERIFIED') {
+        setFormError(err.message)
+        setShowResend(true)
+        return
+      }
       setFormError(err instanceof Error ? err.message : 'Login failed.')
+    }
+  }
+
+  async function handleResend() {
+    if (!resendEmailInput.trim()) return
+    setResending(true)
+    setResendMessage(null)
+    try {
+      const result = await resendVerificationRequest(resendEmailInput.trim())
+      setResendMessage(result.message)
+    } catch (err) {
+      setResendMessage(
+        err instanceof Error ? err.message : 'Could not resend verification.'
+      )
+    } finally {
+      setResending(false)
     }
   }
 
@@ -56,6 +92,12 @@ function LoginForm() {
         <CardDescription>Sign in to your Nova Bank account</CardDescription>
       </CardHeader>
       <CardContent>
+        {banner ? (
+          <p className="mb-4 rounded-lg bg-primary/10 px-3 py-2 text-center text-primary text-sm">
+            {banner}
+          </p>
+        ) : null}
+
         <form
           className="flex flex-col gap-4"
           onSubmit={handleSubmit(onSubmit)}
@@ -96,6 +138,33 @@ function LoginForm() {
             <p role="alert" className="text-destructive text-sm">
               {formError}
             </p>
+          ) : null}
+
+          {showResend ? (
+            <div className="flex flex-col gap-2 rounded-lg border p-3">
+              <Field>
+                <FieldLabel htmlFor="resendEmail">Email for verification</FieldLabel>
+                <Input
+                  id="resendEmail"
+                  type="email"
+                  value={resendEmailInput}
+                  onChange={(e) => setResendEmailInput(e.target.value)}
+                  placeholder="you@example.com"
+                />
+              </Field>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                disabled={resending || !resendEmailInput.trim()}
+                onClick={handleResend}
+              >
+                {resending ? 'Sending...' : 'Resend verification email'}
+              </Button>
+              {resendMessage ? (
+                <p className="text-primary text-sm">{resendMessage}</p>
+              ) : null}
+            </div>
           ) : null}
 
           <Button type="submit" className="mt-2" disabled={isSubmitting}>

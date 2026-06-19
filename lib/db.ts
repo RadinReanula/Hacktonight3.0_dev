@@ -60,9 +60,20 @@ CREATE TABLE IF NOT EXISTS audit_logs (
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+CREATE TABLE IF NOT EXISTS email_verification_tokens (
+  id SERIAL PRIMARY KEY,
+  user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  token_hash TEXT NOT NULL,
+  purpose TEXT NOT NULL DEFAULT 'signup',
+  expires_at TIMESTAMPTZ NOT NULL,
+  used_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
 CREATE INDEX IF NOT EXISTS idx_accounts_user_id ON accounts(user_id);
 CREATE INDEX IF NOT EXISTS idx_transactions_from ON transactions(from_account);
 CREATE INDEX IF NOT EXISTS idx_transactions_to ON transactions(to_account);
+CREATE INDEX IF NOT EXISTS idx_email_tokens_user_id ON email_verification_tokens(user_id);
 `
 
 type SeedUser = {
@@ -203,6 +214,46 @@ async function migrateSchema() {
     }
     await pool.query('ALTER TABLE accounts ALTER COLUMN pin DROP NOT NULL')
   }
+
+  if (!(await columnExists('users', 'email_verified'))) {
+    await pool.query(
+      'ALTER TABLE users ADD COLUMN email_verified BOOLEAN NOT NULL DEFAULT false'
+    )
+  }
+
+  if (!(await columnExists('users', 'email_verified_at'))) {
+    await pool.query(
+      'ALTER TABLE users ADD COLUMN email_verified_at TIMESTAMPTZ'
+    )
+  }
+
+  await pool.query(`
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_users_email_lower
+    ON users (LOWER(email))
+    WHERE email IS NOT NULL
+  `)
+
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS email_verification_tokens (
+      id SERIAL PRIMARY KEY,
+      user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      token_hash TEXT NOT NULL,
+      purpose TEXT NOT NULL DEFAULT 'signup',
+      expires_at TIMESTAMPTZ NOT NULL,
+      used_at TIMESTAMPTZ,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `)
+
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS idx_email_tokens_user_id
+    ON email_verification_tokens(user_id)
+  `)
+
+  await pool.query(
+    `UPDATE users SET email_verified = true, email_verified_at = COALESCE(email_verified_at, NOW())
+     WHERE username IN ('dilara', 'kasun', 'admin') AND email_verified = false`
+  )
 }
 
 /** Always refresh demo-user passwords so README credentials stay valid. */
@@ -222,7 +273,9 @@ async function syncDemoUsers() {
            role = EXCLUDED.role,
            full_name = EXCLUDED.full_name,
            nic = EXCLUDED.nic,
-           email = EXCLUDED.email`,
+           email = EXCLUDED.email,
+           email_verified = true,
+           email_verified_at = COALESCE(users.email_verified_at, NOW())`,
         [
           user.id,
           user.username,
@@ -244,7 +297,9 @@ async function syncDemoUsers() {
          role = EXCLUDED.role,
          full_name = EXCLUDED.full_name,
          nic = EXCLUDED.nic,
-         email = EXCLUDED.email`,
+         email = EXCLUDED.email,
+         email_verified = true,
+         email_verified_at = COALESCE(users.email_verified_at, NOW())`,
       [
         user.id,
         user.username,
