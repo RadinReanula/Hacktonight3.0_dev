@@ -35,7 +35,10 @@ Set values in `.env.local` (notably `DATABASE_URL` and `SESSION_SECRET`).
 docker compose up --build --watch
 ```
 
-App: http://localhost:3000 · Postgres: localhost:5432
+App: http://localhost:3001 (mapped from container port 3000)
+
+Postgres runs only on the internal Docker network (`db:5432`). It is **not** exposed on the host
+because Windows often reserves ports 5358–5457 (includes 5432). The app does not need a host mapping.
 
 ## Run locally (without Docker)
 

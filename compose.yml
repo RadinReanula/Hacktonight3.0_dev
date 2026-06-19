@@ -12,7 +12,7 @@ services:
       NODE_ENV: development
       PORT: "3000"
     ports:
-      - "3000:3000"
+      - "3001:3000"
     volumes:
       - .:/app
       - /app/node_modules
@@ -39,8 +39,9 @@ services:
     container_name: htn-26-challenge-db
     env_file:
       - .env.local
-    ports:
-      - "5432:5432"
+    # No host port mapping — the app reaches Postgres at db:5432 on the internal
+    # Docker network. Exposing 5432/5433 on Windows often fails due to reserved
+    # port ranges; omit this unless you explicitly need host access.
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
