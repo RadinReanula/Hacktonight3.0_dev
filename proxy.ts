@@ -3,7 +3,12 @@ import { SESSION_COOKIE, verifySessionToken } from '@/lib/session'
 
 const PUBLIC_PAGES = new Set(['/', '/login', '/sign-up', '/reset-password'])
 
-const PUBLIC_API = ['/api/auth/login', '/api/auth/register', '/api/health']
+const PUBLIC_API = [
+  '/api/auth/login',
+  '/api/auth/register',
+  '/api/auth/logout',
+  '/api/health'
+]
 
 function isPublicApi(pathname: string) {
   return PUBLIC_API.some((p) => pathname === p || pathname.startsWith(`${p}/`))

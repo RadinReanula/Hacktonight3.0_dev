@@ -14,6 +14,7 @@ import {
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import type { ComponentType } from 'react'
+import { LogoutButton } from '@/components/auth/logout-button'
 import { cn } from '@/lib/utils'
 
 type NavItem = {
@@ -70,21 +71,27 @@ export function Sidebar() {
         </nav>
       </div>
 
-      <div className="flex gap-2 p-4 max-md:p-0">
-        <Link
-          href="/settings"
-          aria-label="Settings"
-          className="rounded-lg p-2 text-sidebar-foreground/80 transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
-        >
-          <Settings className="size-5" />
-        </Link>
-        <Link
-          href="/help"
-          aria-label="Help"
-          className="rounded-lg p-2 text-sidebar-foreground/80 transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
-        >
-          <HelpCircle className="size-5" />
-        </Link>
+      <div className="flex flex-col gap-2 p-4 max-md:p-0">
+        <LogoutButton variant="sidebar" className="max-md:hidden" />
+        <div className="flex gap-2">
+          <Link
+            href="/settings"
+            aria-label="Settings"
+            className="rounded-lg p-2 text-sidebar-foreground/80 transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+          >
+            <Settings className="size-5" />
+          </Link>
+          <Link
+            href="/help"
+            aria-label="Help"
+            className="rounded-lg p-2 text-sidebar-foreground/80 transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+          >
+            <HelpCircle className="size-5" />
+          </Link>
+          <div className="md:hidden">
+            <LogoutButton variant="sidebar" showLabel={false} className="w-auto px-2" />
+          </div>
+        </div>
       </div>
     </aside>
   )

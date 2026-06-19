@@ -1,6 +1,7 @@
 'use client'
 
 import { Bell, Search } from 'lucide-react'
+import { LogoutButton } from '@/components/auth/logout-button'
 import { cn } from '@/lib/utils'
 
 type TopBarProps = {
@@ -36,6 +37,7 @@ export function TopBar({ userName, className }: TopBarProps) {
       </div>
 
       <div className="ml-auto flex items-center gap-3">
+        <LogoutButton variant="topbar" />
         <button
           type="button"
           aria-label="Notifications"

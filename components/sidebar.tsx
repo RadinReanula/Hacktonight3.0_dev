@@ -2,6 +2,7 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
+import { LogoutButton } from '@/components/auth/logout-button'
 
 // Minimal icon components to avoid external dependency
 type IconProps = { size?: number }
@@ -133,6 +134,7 @@ export default function Sidebar() {
       <div className="sidebar-footer">
         <Settings size={24} />
         <HelpCircle size={24} />
+        <LogoutButton variant="legacy" />
       </div>
 
       <style jsx>{`
@@ -219,6 +221,30 @@ export default function Sidebar() {
           gap: 1.5rem;
           padding: 1.5rem;
           color: white;
+          align-items: center;
+        }
+
+        :global(.legacy-sign-out) {
+          margin-left: auto;
+          border: 1px solid rgba(255, 255, 255, 0.35);
+          background: transparent;
+          color: white;
+          border-radius: 999px;
+          padding: 0.4rem 0.9rem;
+          font-size: 0.75rem;
+          font-weight: 700;
+          letter-spacing: 0.04em;
+          text-transform: uppercase;
+          cursor: pointer;
+        }
+
+        :global(.legacy-sign-out:hover) {
+          background: rgba(255, 255, 255, 0.12);
+        }
+
+        :global(.legacy-sign-out:disabled) {
+          opacity: 0.6;
+          cursor: not-allowed;
         }
 
         @media (max-width: 768px) {

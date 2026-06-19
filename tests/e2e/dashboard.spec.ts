@@ -45,3 +45,28 @@ test('bank accounts CRUD happy path', async ({ page }) => {
     page.locator('[data-slot="card-title"]', { hasText: renamed })
   ).toHaveCount(0)
 })
+
+test('sign out ends the session and blocks protected pages', async ({
+  page
+}) => {
+  await login(page)
+  await page.goto('/dashboard')
+
+  await page.getByRole('button', { name: 'Sign out' }).first().click()
+  await page.waitForURL('**/login')
+
+  await page.goto('/dashboard')
+  await page.waitForURL('**/login**')
+  await expect(page.getByRole('button', { name: 'Sign in' })).toBeVisible()
+})
+
+test('sign out works from legacy bank transfer page', async ({ page }) => {
+  await login(page)
+  await page.goto('/bank-transfer')
+
+  await page.getByRole('button', { name: 'Sign out' }).click()
+  await page.waitForURL('**/login')
+
+  await page.goto('/bank-transfer')
+  await page.waitForURL('**/login**')
+})
