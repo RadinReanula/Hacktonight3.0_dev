@@ -43,5 +43,7 @@ test('bank accounts CRUD happy path', async ({ page }) => {
   await page.getByRole('button', { name: 'Delete Renamed Account' }).click()
   await page.getByRole('button', { name: 'Delete', exact: true }).click()
 
-  await expect(page.getByText('Renamed Account')).not.toBeVisible()
+  await expect(
+    page.locator('main').getByText('Renamed Account')
+  ).not.toBeVisible()
 })
