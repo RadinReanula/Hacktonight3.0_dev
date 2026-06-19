@@ -47,6 +47,30 @@ npm install
 npm run dev
 ```
 
+## Run against Supabase (hosted Postgres)
+
+The app talks to Postgres through `pg` in `lib/db.ts`, so migrating to Supabase
+is just a connection-string swap — no Supabase Auth / `supabase-js` changes.
+
+1. Create (or open) a Supabase project.
+2. **Project Settings → Database → Connection string** and copy the **Session
+   pooler** (port `5432`) or **Direct** URI. Do **not** use the transaction
+   pooler (`6543`): transfers and bill payments use multi-statement
+   transactions via `getClient()`.
+3. Put it in `.env.local`:
+
+   ```env
+   DATABASE_URL=postgresql://postgres.[project-ref]:[db-password]@aws-0-[region].pooler.supabase.com:5432/postgres?sslmode=require
+   SESSION_SECRET=your-long-random-secret
+   ```
+
+   SSL is enabled automatically for Supabase hosts in `lib/db.ts`.
+4. Bootstrap the schema/data — either let the app create it on first request
+   (`ensureDatabase()`), or paste [`supabase/bootstrap.sql`](supabase/bootstrap.sql)
+   into the Supabase SQL Editor.
+
+You no longer need the Docker `db` service when using Supabase.
+
 ## Scripts
 
 - `npm run dev` — start the dev server

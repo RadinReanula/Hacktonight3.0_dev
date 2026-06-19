@@ -5,9 +5,18 @@ const connectionString =
   process.env.DATABASE_URL ||
   'postgresql://postgres:supersecurepassword@localhost:5432/htn26db'
 
+// Supabase (and most hosted Postgres) require TLS. Enable SSL automatically for
+// Supabase hosts or when the connection string opts in, but keep it off for the
+// local/Docker Postgres so dev keeps working unchanged.
+const requiresSsl =
+  /supabase\.(co|com|net|in)/.test(connectionString) ||
+  /[?&]sslmode=require/.test(connectionString) ||
+  process.env.PGSSLMODE === 'require'
+
 export const pool = new Pool({
   connectionString,
-  max: 10
+  max: 10,
+  ssl: requiresSsl ? { rejectUnauthorized: false } : undefined
 })
 
 let booted: Promise<void> | null = null
