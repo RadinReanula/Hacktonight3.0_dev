@@ -55,8 +55,21 @@ npm run dev
 Demo Credentials: dilara / password123 · kasun / kasun12345 · admin / admin12345
 
 The database schema and demo data are created automatically on first request
-(`lib/db.ts`). Demo logins: `dilara / password123`, `kasun / kasun12345`,
-`admin / admin12345`.
+(`lib/db.ts`). Demo credentials are **reset on every app start** so they always
+match the table below.
+
+| Username | Password     | Role     |
+| -------- | ------------ | -------- |
+| `dilara` | `password123` | customer |
+| `kasun`  | `kasun12345`  | customer |
+| `admin`  | `admin12345`  | admin    |
+
+If login still fails after pulling latest code, reset the database volume:
+
+```bash
+docker compose down -v
+docker compose up --build --watch
+```
 
 ## Team development
 

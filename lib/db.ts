@@ -1,5 +1,5 @@
 import { Pool, type PoolClient, type QueryResultRow } from 'pg'
-import { hashSecret } from './hash'
+import { hashIfNeeded, hashSecret } from './hash'
 
 const connectionString =
   process.env.DATABASE_URL ||
@@ -155,16 +155,67 @@ const seedBillers = [
   { slug: 'lolc', name: 'LOLC Finance', category: 'Finance' }
 ]
 
-async function seedDatabase() {
-  const existing = await pool.query('SELECT COUNT(*)::int AS count FROM users')
-  if (existing.rows[0].count > 0) return
+async function columnExists(table: string, column: string): Promise<boolean> {
+  const result = await pool.query(
+    `SELECT 1 FROM information_schema.columns
+     WHERE table_schema = 'public' AND table_name = $1 AND column_name = $2`,
+    [table, column]
+  )
+  return result.rows.length > 0
+}
 
+/** Upgrade legacy plaintext `password` / `pin` columns to hashed columns. */
+async function migrateSchema() {
+  if (!(await columnExists('users', 'password_hash'))) {
+    await pool.query('ALTER TABLE users ADD COLUMN password_hash TEXT')
+  }
+
+  if (await columnExists('users', 'password')) {
+    const users = await pool.query<{ id: number; password: string }>(
+      `SELECT id, password FROM users
+       WHERE password_hash IS NULL OR password_hash = ''`
+    )
+    for (const row of users.rows) {
+      const passwordHash = await hashIfNeeded(row.password)
+      await pool.query('UPDATE users SET password_hash = $1 WHERE id = $2', [
+        passwordHash,
+        row.id
+      ])
+    }
+  }
+
+  if (!(await columnExists('accounts', 'pin_hash'))) {
+    await pool.query('ALTER TABLE accounts ADD COLUMN pin_hash TEXT')
+  }
+
+  if (await columnExists('accounts', 'pin')) {
+    const accounts = await pool.query<{ id: number; pin: string }>(
+      `SELECT id, pin FROM accounts
+       WHERE pin_hash IS NULL OR pin_hash = ''`
+    )
+    for (const row of accounts.rows) {
+      const pinHash = await hashIfNeeded(row.pin)
+      await pool.query('UPDATE accounts SET pin_hash = $1 WHERE id = $2', [
+        pinHash,
+        row.id
+      ])
+    }
+  }
+}
+
+/** Always refresh demo-user passwords so README credentials stay valid. */
+async function syncDemoUsers() {
   for (const user of seedUsers) {
     const passwordHash = await hashSecret(user.password)
     await pool.query(
       `INSERT INTO users (id, username, password_hash, role, full_name, nic, email)
        VALUES ($1, $2, $3, $4, $5, $6, $7)
-       ON CONFLICT (id) DO NOTHING`,
+       ON CONFLICT (username) DO UPDATE SET
+         password_hash = EXCLUDED.password_hash,
+         role = EXCLUDED.role,
+         full_name = EXCLUDED.full_name,
+         nic = EXCLUDED.nic,
+         email = EXCLUDED.email`,
       [
         user.id,
         user.username,
@@ -176,14 +227,22 @@ async function seedDatabase() {
       ]
     )
   }
-  await pool.query("SELECT setval('users_id_seq', (SELECT MAX(id) FROM users))")
+  await pool.query(
+    "SELECT setval('users_id_seq', GREATEST((SELECT COALESCE(MAX(id), 1) FROM users), 1))"
+  )
+}
 
+async function syncDemoAccounts() {
   for (const account of seedAccounts) {
     const pinHash = await hashSecret(account.pin)
     await pool.query(
       `INSERT INTO accounts (user_id, account_number, account_name, balance, pin_hash)
        VALUES ($1, $2, $3, $4, $5)
-       ON CONFLICT (account_number) DO NOTHING`,
+       ON CONFLICT (account_number) DO UPDATE SET
+         user_id = EXCLUDED.user_id,
+         account_name = EXCLUDED.account_name,
+         balance = EXCLUDED.balance,
+         pin_hash = EXCLUDED.pin_hash`,
       [
         account.userId,
         account.accountNumber,
@@ -193,6 +252,12 @@ async function seedDatabase() {
       ]
     )
   }
+}
+
+async function seedDatabase() {
+  await migrateSchema()
+  await syncDemoUsers()
+  await syncDemoAccounts()
 
   for (const biller of seedBillers) {
     await pool.query(
@@ -203,13 +268,18 @@ async function seedDatabase() {
     )
   }
 
-  await pool.query(
-    `INSERT INTO transactions (from_account, to_account, amount, description, created_by)
-     VALUES
-       ('1000003423', '2000006754', 4500.00, 'Lunch money', 1),
-       ('1000004876', '1000003423', 10000.00, 'Internal move', 1),
-       ('2000006754', '1000003423', 9870.00, 'Refund', 2)`
+  const txCount = await pool.query(
+    'SELECT COUNT(*)::int AS count FROM transactions'
   )
+  if (txCount.rows[0].count === 0) {
+    await pool.query(
+      `INSERT INTO transactions (from_account, to_account, amount, description, created_by)
+       VALUES
+         ('1000003423', '2000006754', 4500.00, 'Lunch money', 1),
+         ('1000004876', '1000003423', 10000.00, 'Internal move', 1),
+         ('2000006754', '1000003423', 9870.00, 'Refund', 2)`
+    )
+  }
 }
 
 /**
