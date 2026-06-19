@@ -52,6 +52,8 @@ npm run dev
 - `npm run typecheck` — `tsc --noEmit`
 - `npm run format` — Biome format
 
+Demo Credentials: dilara / password123 · kasun / kasun12345 · admin / admin12345
+
 The database schema and demo data are created automatically on first request
 (`lib/db.ts`). Demo logins: `dilara / password123`, `kasun / kasun12345`,
 `admin / admin12345`.
