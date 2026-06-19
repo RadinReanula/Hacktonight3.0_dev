@@ -182,6 +182,7 @@ async function migrateSchema() {
         row.id
       ])
     }
+    await pool.query('ALTER TABLE users ALTER COLUMN password DROP NOT NULL')
   }
 
   if (!(await columnExists('accounts', 'pin_hash'))) {
@@ -200,13 +201,41 @@ async function migrateSchema() {
         row.id
       ])
     }
+    await pool.query('ALTER TABLE accounts ALTER COLUMN pin DROP NOT NULL')
   }
 }
 
 /** Always refresh demo-user passwords so README credentials stay valid. */
 async function syncDemoUsers() {
+  const hasLegacyPassword = await columnExists('users', 'password')
+
   for (const user of seedUsers) {
     const passwordHash = await hashSecret(user.password)
+
+    if (hasLegacyPassword) {
+      await pool.query(
+        `INSERT INTO users (id, username, password, password_hash, role, full_name, nic, email)
+         VALUES ($1, $2, $3, $3, $4, $5, $6, $7)
+         ON CONFLICT (username) DO UPDATE SET
+           password = EXCLUDED.password_hash,
+           password_hash = EXCLUDED.password_hash,
+           role = EXCLUDED.role,
+           full_name = EXCLUDED.full_name,
+           nic = EXCLUDED.nic,
+           email = EXCLUDED.email`,
+        [
+          user.id,
+          user.username,
+          passwordHash,
+          user.role,
+          user.fullName,
+          user.nic,
+          user.email
+        ]
+      )
+      continue
+    }
+
     await pool.query(
       `INSERT INTO users (id, username, password_hash, role, full_name, nic, email)
        VALUES ($1, $2, $3, $4, $5, $6, $7)
@@ -233,8 +262,32 @@ async function syncDemoUsers() {
 }
 
 async function syncDemoAccounts() {
+  const hasLegacyPin = await columnExists('accounts', 'pin')
+
   for (const account of seedAccounts) {
     const pinHash = await hashSecret(account.pin)
+
+    if (hasLegacyPin) {
+      await pool.query(
+        `INSERT INTO accounts (user_id, account_number, account_name, balance, pin, pin_hash)
+         VALUES ($1, $2, $3, $4, $5, $5)
+         ON CONFLICT (account_number) DO UPDATE SET
+           user_id = EXCLUDED.user_id,
+           account_name = EXCLUDED.account_name,
+           balance = EXCLUDED.balance,
+           pin = EXCLUDED.pin_hash,
+           pin_hash = EXCLUDED.pin_hash`,
+        [
+          account.userId,
+          account.accountNumber,
+          account.accountName,
+          account.balance,
+          pinHash
+        ]
+      )
+      continue
+    }
+
     await pool.query(
       `INSERT INTO accounts (user_id, account_number, account_name, balance, pin_hash)
        VALUES ($1, $2, $3, $4, $5)
@@ -301,7 +354,7 @@ export function ensureDatabase(): Promise<void> {
 
 /**
  * The ONLY supported way to run SQL. Always pass user input through `params`
- * placeholders ($1, $2, ...) — never interpolate values into `text`.
+ * placeholders ($1, $2, ...) - never interpolate values into `text`.
  */
 export async function query<T extends QueryResultRow = QueryResultRow>(
   text: string,
@@ -322,7 +375,7 @@ export async function getClient(): Promise<PoolClient> {
 
 /**
  * Safe 500 response. Logs the real error server-side and returns a generic
- * message — never leaks SQL, stack traces, secrets, or the connection string.
+ * message - never leaks SQL, stack traces, secrets, or the connection string.
  */
 export function serviceFailure(reason: unknown) {
   console.error('[service-failure]', reason)

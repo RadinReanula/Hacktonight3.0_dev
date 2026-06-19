@@ -13,7 +13,11 @@ export function verifySecret(plain: string, hash: string): Promise<boolean> {
 
 /** Returns the value unchanged if it is already a bcrypt hash. */
 export async function hashIfNeeded(value: string): Promise<string> {
-  if (value.startsWith('$2a$') || value.startsWith('$2b$') || value.startsWith('$2y$')) {
+  if (
+    value.startsWith('$2a$') ||
+    value.startsWith('$2b$') ||
+    value.startsWith('$2y$')
+  ) {
     return value
   }
   return hashSecret(value)

@@ -1,517 +1,440 @@
 'use client'
 
-import Image from 'next/image'
-import { useRouter, useSearchParams } from 'next/navigation'
-import type React from 'react'
-import { Suspense, useEffect, useState } from 'react'
-import { Bell, Search } from '@/components/Icons'
-import Sidebar from '@/components/sidebar'
-import styles from './accounts.module.css'
+import { zodResolver } from '@hookform/resolvers/zod'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { Loader2, Pencil, Plus, Trash2, Wallet } from 'lucide-react'
+import { useState } from 'react'
+import { useForm } from 'react-hook-form'
+import { AppShell } from '@/components/shell/app-shell'
+import { PageHeader } from '@/components/shell/page-header'
+import { Button } from '@/components/ui/button'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle
+} from '@/components/ui/dialog'
+import { Field, FieldError, FieldLabel } from '@/components/ui/field'
+import { Input } from '@/components/ui/input'
+import { Skeleton } from '@/components/ui/skeleton'
+import {
+  type Account,
+  createAccount,
+  deleteAccount,
+  fetchAccounts,
+  updateAccount
+} from '@/lib/api/accounts'
+import { formatCurrency, maskAccountNumber } from '@/lib/format'
+import {
+  type CreateAccountFormValues,
+  createAccountFormSchema,
+  type EditAccountFormValues,
+  editAccountFormSchema
+} from '@/lib/schemas/accounts'
 
-type Screen = 'list' | 'add' | 'edit'
+type View = 'list' | 'add' | 'edit'
 
-function AccountsPageInner() {
-  const router = useRouter()
-  const searchParams = useSearchParams()
+export default function BankAccountsPage() {
+  const queryClient = useQueryClient()
+  const [view, setView] = useState<View>('list')
+  const [editingAccount, setEditingAccount] = useState<Account | null>(null)
+  const [deleteTarget, setDeleteTarget] = useState<Account | null>(null)
+  const [formError, setFormError] = useState<string | null>(null)
+  const [deleteError, setDeleteError] = useState<string | null>(null)
 
-  // Screen state
-  const [screen, setScreen] = useState<Screen>('list')
-
-  // Check if we're in edit mode from URL
-  const isEditMode = searchParams.get('mode') === 'edit'
-  const accountNumberParam = searchParams.get('accountNumber') || ''
-  const nicknameParam = searchParams.get('nickname') || ''
-  const accountNameParam = searchParams.get('accountName') || ''
-  const emailParam = searchParams.get('email') || ''
-
-  // Form data state
-  const [formData, setFormData] = useState({
-    accountNumber: '',
-    accountName: '',
-    email: '',
-    nickname: ''
+  const accountsQuery = useQuery({
+    queryKey: ['accounts'],
+    queryFn: fetchAccounts
   })
 
-  // Edit nickname state
-  const [nickname, setNickname] = useState('')
-
-  // Validation errors state
-  const [errors, setErrors] = useState({
-    accountNumber: '',
-    accountName: '',
-    email: '',
-    nickname: ''
+  const createForm = useForm<CreateAccountFormValues>({
+    resolver: zodResolver(createAccountFormSchema),
+    defaultValues: { accountNumber: '', accountName: '', pin: '' }
   })
 
-  // Load data if in edit mode
-  useEffect(() => {
-    if (isEditMode) {
-      setFormData({
-        accountNumber: accountNumberParam,
-        accountName: accountNameParam,
-        email: emailParam,
-        nickname: nicknameParam
-      })
-      setNickname(nicknameParam || accountNameParam)
-      setScreen('edit')
+  const editForm = useForm<EditAccountFormValues>({
+    resolver: zodResolver(editAccountFormSchema),
+    defaultValues: { accountName: '' }
+  })
+
+  const createMutation = useMutation({
+    mutationFn: createAccount,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['accounts'] })
+      queryClient.invalidateQueries({ queryKey: ['overview'] })
+      createForm.reset()
+      setFormError(null)
+      setView('list')
+    },
+    onError: (err) => {
+      setFormError(
+        err instanceof Error ? err.message : 'Failed to add account.'
+      )
     }
-  }, [
-    isEditMode,
-    accountNumberParam,
-    accountNameParam,
-    emailParam,
-    nicknameParam
-  ])
+  })
 
-  // ===== VALIDATION FUNCTIONS =====
-  const validateField = (name: string, value: string) => {
-    let error = ''
-
-    switch (name) {
-      case 'accountNumber':
-        if (!value.trim()) {
-          error = 'Account number is required'
-        } else if (!/^\d+$/.test(value)) {
-          error = 'Account number must contain only numbers'
-        } else if (value.length < 8 || value.length > 20) {
-          error = 'Account number must be between 8 and 20 digits'
-        }
-        break
-
-      case 'accountName':
-        if (!value.trim()) {
-          error = 'Account name is required'
-        } else if (value.trim().length < 2) {
-          error = 'Account name must be at least 2 characters'
-        } else if (!/^[a-zA-Z\s]+$/.test(value)) {
-          error = 'Account name must contain only letters and spaces'
-        }
-        break
-
-      case 'email':
-        if (!value.trim()) {
-          error = 'Email is required'
-        } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) {
-          error = 'Please enter a valid email address'
-        }
-        break
-
-      case 'nickname':
-        if (!value.trim()) {
-          error = 'Nickname is required'
-        } else if (value.trim().length < 2) {
-          error = 'Nickname must be at least 2 characters'
-        }
-        break
-
-      default:
-        break
+  const updateMutation = useMutation({
+    mutationFn: updateAccount,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['accounts'] })
+      queryClient.invalidateQueries({ queryKey: ['overview'] })
+      setFormError(null)
+      setEditingAccount(null)
+      setView('list')
+    },
+    onError: (err) => {
+      setFormError(
+        err instanceof Error ? err.message : 'Failed to update account.'
+      )
     }
+  })
 
-    return error
+  const deleteMutation = useMutation({
+    mutationFn: deleteAccount,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['accounts'] })
+      queryClient.invalidateQueries({ queryKey: ['overview'] })
+      setDeleteError(null)
+      setDeleteTarget(null)
+    },
+    onError: (err) => {
+      setDeleteError(
+        err instanceof Error ? err.message : 'Failed to delete account.'
+      )
+    }
+  })
+
+  function openAdd() {
+    setFormError(null)
+    createForm.reset()
+    setView('add')
   }
 
-  const validateForm = () => {
-    const newErrors = {
-      accountNumber: validateField('accountNumber', formData.accountNumber),
-      accountName: validateField('accountName', formData.accountName),
-      email: validateField('email', formData.email),
-      nickname: validateField('nickname', formData.nickname)
-    }
-
-    setErrors(newErrors)
-
-    // Return true if no errors
-    return !Object.values(newErrors).some((error) => error !== '')
+  function openEdit(account: Account) {
+    setFormError(null)
+    setEditingAccount(account)
+    editForm.reset({ accountName: account.accountName })
+    setView('edit')
   }
 
-  // ===== RESET FORM FUNCTION =====
-  const resetForm = () => {
-    setFormData({
-      accountNumber: '',
-      accountName: '',
-      email: '',
-      nickname: ''
-    })
-    setNickname('')
-    setErrors({
-      accountNumber: '',
-      accountName: '',
-      email: '',
-      nickname: ''
+  function onCreateSubmit(values: CreateAccountFormValues) {
+    setFormError(null)
+    createMutation.mutate({
+      account_number: values.accountNumber,
+      account_name: values.accountName,
+      pin: values.pin || undefined
     })
   }
 
-  // ===== NAVIGATION FUNCTIONS =====
-  const goToList = () => {
-    resetForm()
-    setScreen('list')
-    router.push('/bank-accounts')
-  }
-
-  const goToAdd = () => {
-    resetForm()
-    setScreen('add')
-    router.push('/bank-accounts?mode=add')
-  }
-
-  const goToEdit = () => {
-    setScreen('edit')
-    router.push('/bank-accounts?mode=edit')
-  }
-
-  // ===== FORM HANDLERS =====
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target
-    setFormData((prev) => ({
-      ...prev,
-      [name]: value
-    }))
-
-    // Clear error for this field when user starts typing
-    if (errors[name as keyof typeof errors]) {
-      setErrors((prev) => ({
-        ...prev,
-        [name]: ''
-      }))
-    }
-  }
-
-  const handleBlur = (e: React.FocusEvent<HTMLInputElement>) => {
-    const { name, value } = e.target
-    const error = validateField(name, value)
-    setErrors((prev) => ({
-      ...prev,
-      [name]: error
-    }))
-  }
-
-  const handleAddAccount = (e: React.FormEvent) => {
-    e.preventDefault()
-
-    if (!validateForm()) {
-      // Scroll to first error
-      const firstErrorField = document.querySelector(`.${styles.fieldError}`)
-      if (firstErrorField) {
-        firstErrorField.scrollIntoView({ behavior: 'smooth', block: 'center' })
-      }
-      return
-    }
-
-    console.log('Adding new account:', formData)
-    alert('Account added successfully!')
-    resetForm()
-    goToList()
-  }
-
-  const handleUpdateAccount = (e: React.FormEvent) => {
-    e.preventDefault()
-
-    // Check if at least account number is filled
-    if (!formData.accountNumber.trim()) {
-      alert('Please enter an account number first')
-      return
-    }
-
-    // Navigate to edit mode with whatever data is filled
-    router.push(
-      `/bank-accounts?mode=edit&accountNumber=${formData.accountNumber}&accountName=${formData.accountName || ''}&email=${formData.email || ''}&nickname=${formData.nickname || ''}`
-    )
-  }
-
-  const handleEditNickname = (e: React.FormEvent) => {
-    e.preventDefault()
-
-    if (!nickname.trim()) {
-      alert('Please enter a nickname')
-      return
-    }
-
-    if (nickname.trim().length < 2) {
-      alert('Nickname must be at least 2 characters')
-      return
-    }
-
-    console.log('Updating nickname to:', nickname)
-    alert(`Nickname updated to: ${nickname}`)
-    resetForm()
-    goToList()
-  }
-
-  const handleCancel = () => {
-    resetForm()
-    goToList()
+  function onEditSubmit(values: EditAccountFormValues) {
+    if (!editingAccount) return
+    setFormError(null)
+    updateMutation.mutate({
+      id: editingAccount.id,
+      account_name: values.accountName
+    })
   }
 
   return (
-    <main className={styles.accountsPage}>
-      <Sidebar />
-      <section className={styles.content}>
-        {/* ===== LIST SCREEN ===== */}
-        {screen === 'list' && (
-          <>
-            <header className={styles.contentHeader}>
-              <h1 className={styles.pageTitle}>Accounts</h1>
-              <div className={styles.headerActions}>
-                <Search size={22} />
-                <Bell size={22} />
-                <div className={styles.avatarPlaceholder}>
-                  <Image
-                    src="/person-logo.png"
-                    alt="Profile"
-                    width={40}
-                    height={40}
-                    style={{ objectFit: 'cover', borderRadius: '50%' }}
-                  />
-                </div>
-              </div>
-            </header>
+    <AppShell>
+      <PageHeader
+        title="Accounts"
+        actions={
+          view === 'list' ? (
+            <Button onClick={openAdd}>
+              <Plus className="size-4" />
+              Add account
+            </Button>
+          ) : (
+            <Button variant="outline" onClick={() => setView('list')}>
+              Back to list
+            </Button>
+          )
+        }
+      />
 
-            <div className={styles.cardsContainer}>
-              <div className={styles.accountCard}>
-                <div className={styles.iconEdit} onClick={goToEdit}>
-                  ✏️
-                </div>
-                <div className={styles.iconDelete}>🗑️</div>
-                <div className={styles.accountCardContent}>
-                  <h2 className={styles.accountName}>Anura</h2>
-                  <div className={styles.accountAvatar}>
-                    <Image
-                      src="/account-logo.png"
-                      alt="profile"
-                      width={100}
-                      height={100}
-                      style={{ objectFit: 'cover', borderRadius: '50%' }}
-                    />
+      {view === 'list' &&
+        (accountsQuery.isLoading ? (
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            <Skeleton className="h-40 rounded-xl" />
+            <Skeleton className="h-40 rounded-xl" />
+          </div>
+        ) : accountsQuery.isError ? (
+          <Card>
+            <CardContent className="py-12 text-center">
+              <p className="text-destructive text-sm">
+                {accountsQuery.error instanceof Error
+                  ? accountsQuery.error.message
+                  : 'Failed to load accounts.'}
+              </p>
+              <Button
+                className="mt-4"
+                variant="outline"
+                onClick={() => accountsQuery.refetch()}
+              >
+                Try again
+              </Button>
+            </CardContent>
+          </Card>
+        ) : accountsQuery.data?.length === 0 ? (
+          <Card>
+            <CardContent className="flex flex-col items-center gap-3 py-16 text-center">
+              <span className="flex size-12 items-center justify-center rounded-full bg-accent text-accent-foreground">
+                <Wallet className="size-6" />
+              </span>
+              <p className="font-medium">No accounts yet</p>
+              <p className="max-w-sm text-muted-foreground text-sm">
+                Add your first bank account to get started.
+              </p>
+              <Button onClick={openAdd}>
+                <Plus className="size-4" />
+                Add account
+              </Button>
+            </CardContent>
+          </Card>
+        ) : (
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {accountsQuery.data?.map((account) => (
+              <Card key={account.id} className="relative">
+                <CardHeader className="pb-2">
+                  <div className="flex items-start justify-between gap-2">
+                    <div>
+                      <CardTitle className="text-base">
+                        {account.accountName}
+                      </CardTitle>
+                      <p className="text-muted-foreground text-sm">
+                        {maskAccountNumber(account.accountNumber)}
+                      </p>
+                    </div>
+                    <div className="flex gap-1">
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        aria-label={`Edit ${account.accountName}`}
+                        onClick={() => openEdit(account)}
+                      >
+                        <Pencil className="size-4" />
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        aria-label={`Delete ${account.accountName}`}
+                        onClick={() => {
+                          setDeleteError(null)
+                          setDeleteTarget(account)
+                        }}
+                      >
+                        <Trash2 className="size-4 text-destructive" />
+                      </Button>
+                    </div>
                   </div>
-                  <p className={styles.accountDetails}>
-                    Nova Bank <br />
-                    Colombo 05
+                </CardHeader>
+                <CardContent>
+                  <p className="font-semibold text-xl">
+                    {formatCurrency(account.balance)}
                   </p>
-                </div>
-              </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        ))}
 
-              <button className={styles.addAccountCard} onClick={goToAdd}>
-                <h2 className={styles.addAccountTitle}>Add a Bank Account</h2>
-                <div className={styles.addAccountIcon}>+</div>
-              </button>
-            </div>
-          </>
-        )}
+      {view === 'add' && (
+        <Card className="mx-auto max-w-lg">
+          <CardHeader>
+            <CardTitle>Add account</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <form
+              className="flex flex-col gap-4"
+              onSubmit={createForm.handleSubmit(onCreateSubmit)}
+              noValidate
+            >
+              <Field>
+                <FieldLabel htmlFor="accountNumber">Account number</FieldLabel>
+                <Input
+                  id="accountNumber"
+                  inputMode="numeric"
+                  aria-invalid={Boolean(
+                    createForm.formState.errors.accountNumber
+                  )}
+                  {...createForm.register('accountNumber')}
+                />
+                <FieldError>
+                  {createForm.formState.errors.accountNumber?.message}
+                </FieldError>
+              </Field>
 
-        {/* ===== ADD SCREEN ===== */}
-        {screen === 'add' && (
-          <>
-            <header className={styles.contentHeader}>
-              <h1 className={styles.pageTitle}>Accounts</h1>
-              <div className={styles.headerActions}>
-                <Search size={22} />
-                <Bell size={22} />
-                <div className={styles.avatarPlaceholder}>
-                  <Image
-                    src="/person-logo.png"
-                    alt="Profile"
-                    width={40}
-                    height={40}
-                    style={{ objectFit: 'cover', borderRadius: '50%' }}
-                  />
-                </div>
-              </div>
-            </header>
+              <Field>
+                <FieldLabel htmlFor="accountName">Account name</FieldLabel>
+                <Input
+                  id="accountName"
+                  aria-invalid={Boolean(
+                    createForm.formState.errors.accountName
+                  )}
+                  {...createForm.register('accountName')}
+                />
+                <FieldError>
+                  {createForm.formState.errors.accountName?.message}
+                </FieldError>
+              </Field>
 
-            <div className={styles.formContainer}>
-              <div className={styles.formCard}>
-                <div className={styles.formHeader}>
-                  <h2 className={styles.formTitle}>Add Another Bank Account</h2>
-                </div>
+              <Field>
+                <FieldLabel htmlFor="pin">PIN (optional)</FieldLabel>
+                <Input
+                  id="pin"
+                  type="password"
+                  inputMode="numeric"
+                  maxLength={4}
+                  autoComplete="off"
+                  aria-invalid={Boolean(createForm.formState.errors.pin)}
+                  {...createForm.register('pin')}
+                />
+                <FieldError>
+                  {createForm.formState.errors.pin?.message}
+                </FieldError>
+              </Field>
 
-                <form className={styles.formFields}>
-                  <div className={styles.formGroup}>
-                    <label htmlFor="accountNumber">Bank Account Number:</label>
-                    <input
-                      type="text"
-                      id="accountNumber"
-                      name="accountNumber"
-                      value={formData.accountNumber}
-                      onChange={handleChange}
-                      onBlur={handleBlur}
-                      placeholder="Enter account number"
-                      className={errors.accountNumber ? styles.inputError : ''}
-                      required
-                    />
-                    {errors.accountNumber && (
-                      <span className={styles.fieldError}>
-                        {errors.accountNumber}
-                      </span>
-                    )}
-                  </div>
+              {formError ? (
+                <p role="alert" className="text-destructive text-sm">
+                  {formError}
+                </p>
+              ) : null}
 
-                  <div className={styles.formGroup}>
-                    <label htmlFor="accountName">Bank Account Name:</label>
-                    <input
-                      type="text"
-                      id="accountName"
-                      name="accountName"
-                      value={formData.accountName}
-                      onChange={handleChange}
-                      onBlur={handleBlur}
-                      placeholder="Enter account holder name"
-                      className={errors.accountName ? styles.inputError : ''}
-                      required
-                    />
-                    {errors.accountName && (
-                      <span className={styles.fieldError}>
-                        {errors.accountName}
-                      </span>
-                    )}
-                  </div>
-
-                  <div className={styles.formGroup}>
-                    <label htmlFor="email">Email:</label>
-                    <input
-                      type="email"
-                      id="email"
-                      name="email"
-                      value={formData.email}
-                      onChange={handleChange}
-                      onBlur={handleBlur}
-                      placeholder="Enter email address"
-                      className={errors.email ? styles.inputError : ''}
-                      required
-                    />
-                    {errors.email && (
-                      <span className={styles.fieldError}>{errors.email}</span>
-                    )}
-                  </div>
-
-                  <div className={styles.formGroup}>
-                    <label htmlFor="nickname">Nickname:</label>
-                    <input
-                      type="text"
-                      id="nickname"
-                      name="nickname"
-                      value={formData.nickname}
-                      onChange={handleChange}
-                      onBlur={handleBlur}
-                      placeholder="Enter a nickname"
-                      className={errors.nickname ? styles.inputError : ''}
-                      required
-                    />
-                    {errors.nickname && (
-                      <span className={styles.fieldError}>
-                        {errors.nickname}
-                      </span>
-                    )}
-                  </div>
-
-                  <div className={styles.formActionsBottom}>
-                    <button
-                      type="button"
-                      className={styles.btnCancel}
-                      onClick={handleCancel}
-                    >
-                      Cancel
-                    </button>
-                    <button
-                      type="button"
-                      className={styles.btnAdd}
-                      onClick={handleAddAccount}
-                    >
-                      Add Account
-                    </button>
-                    <button
-                      type="button"
-                      className={styles.btnUpdate}
-                      onClick={handleUpdateAccount}
-                    >
-                      Update Account
-                    </button>
-                  </div>
-                </form>
-              </div>
-            </div>
-          </>
-        )}
-
-        {/* ===== EDIT SCREEN ===== */}
-        {screen === 'edit' && (
-          <>
-            <header className={styles.contentHeader}>
-              <h1 className={styles.pageTitle}>Accounts</h1>
-              <div className={styles.headerActions}>
-                <Search size={22} />
-                <Bell size={22} />
-                <div className={styles.avatarPlaceholder}>
-                  <Image
-                    src="/person-logo.png"
-                    alt="Profile"
-                    width={40}
-                    height={40}
-                    style={{ objectFit: 'cover', borderRadius: '50%' }}
-                  />
-                </div>
-              </div>
-            </header>
-
-            <div className={styles.formContainer}>
-              <div className={styles.formCard}>
-                <div className={styles.formHeader}>
-                  <h2 className={styles.formTitle}>Edit the nickname</h2>
-                </div>
-
-                <form
-                  onSubmit={handleEditNickname}
-                  className={styles.formFields}
+              <div className="flex gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setView('list')}
                 >
-                  <div className={styles.formGroup}>
-                    <label htmlFor="accountNumber">Bank Account Number:</label>
-                    <input
-                      type="text"
-                      id="accountNumber"
-                      value={formData.accountNumber || '1234567890'}
-                      disabled
-                      className={styles.inputDisabled}
-                    />
-                  </div>
-
-                  <div className={styles.formGroup}>
-                    <label htmlFor="nickname">Nickname:</label>
-                    <input
-                      type="text"
-                      id="nickname"
-                      value={nickname}
-                      onChange={(e) => setNickname(e.target.value)}
-                      placeholder="Enter new nickname"
-                      required
-                    />
-                  </div>
-
-                  <div className={styles.formActionsBottom}>
-                    <button
-                      type="button"
-                      className={styles.btnCancel}
-                      onClick={handleCancel}
-                    >
-                      Cancel
-                    </button>
-                    <button type="submit" className={styles.btnUpdate}>
-                      UPDATE
-                    </button>
-                  </div>
-                </form>
+                  Cancel
+                </Button>
+                <Button type="submit" disabled={createMutation.isPending}>
+                  {createMutation.isPending ? (
+                    <>
+                      <Loader2 className="size-4 animate-spin" /> Saving...
+                    </>
+                  ) : (
+                    'Add account'
+                  )}
+                </Button>
               </div>
-            </div>
-          </>
-        )}
-      </section>
-    </main>
-  )
-}
+            </form>
+          </CardContent>
+        </Card>
+      )}
 
-export default function AccountsPage() {
-  return (
-    <Suspense fallback={null}>
-      <AccountsPageInner />
-    </Suspense>
+      {view === 'edit' && editingAccount ? (
+        <Card className="mx-auto max-w-lg">
+          <CardHeader>
+            <CardTitle>Rename account</CardTitle>
+            <p className="text-muted-foreground text-sm">
+              {maskAccountNumber(editingAccount.accountNumber)}
+            </p>
+          </CardHeader>
+          <CardContent>
+            <form
+              className="flex flex-col gap-4"
+              onSubmit={editForm.handleSubmit(onEditSubmit)}
+              noValidate
+            >
+              <Field>
+                <FieldLabel htmlFor="editAccountName">Account name</FieldLabel>
+                <Input
+                  id="editAccountName"
+                  aria-invalid={Boolean(editForm.formState.errors.accountName)}
+                  {...editForm.register('accountName')}
+                />
+                <FieldError>
+                  {editForm.formState.errors.accountName?.message}
+                </FieldError>
+              </Field>
+
+              {formError ? (
+                <p role="alert" className="text-destructive text-sm">
+                  {formError}
+                </p>
+              ) : null}
+
+              <div className="flex gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setView('list')}
+                >
+                  Cancel
+                </Button>
+                <Button type="submit" disabled={updateMutation.isPending}>
+                  {updateMutation.isPending ? (
+                    <>
+                      <Loader2 className="size-4 animate-spin" /> Saving...
+                    </>
+                  ) : (
+                    'Save changes'
+                  )}
+                </Button>
+              </div>
+            </form>
+          </CardContent>
+        </Card>
+      ) : null}
+
+      <Dialog
+        open={deleteTarget !== null}
+        onOpenChange={(open) => {
+          if (!open) {
+            setDeleteTarget(null)
+            setDeleteError(null)
+          }
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete account?</DialogTitle>
+            <DialogDescription>
+              This will permanently remove{' '}
+              <strong>{deleteTarget?.accountName}</strong> (
+              {deleteTarget
+                ? maskAccountNumber(deleteTarget.accountNumber)
+                : ''}
+              ). Accounts with a non-zero balance cannot be deleted.
+            </DialogDescription>
+          </DialogHeader>
+
+          {deleteError ? (
+            <p role="alert" className="text-destructive text-sm">
+              {deleteError}
+            </p>
+          ) : null}
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeleteTarget(null)}>
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              disabled={deleteMutation.isPending}
+              onClick={() => {
+                if (!deleteTarget) return
+                deleteMutation.mutate({ id: deleteTarget.id })
+              }}
+            >
+              {deleteMutation.isPending ? (
+                <>
+                  <Loader2 className="size-4 animate-spin" /> Deleting...
+                </>
+              ) : (
+                'Delete'
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </AppShell>
   )
 }
