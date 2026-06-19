@@ -4,6 +4,8 @@ import { useQuery } from '@tanstack/react-query'
 import { ArrowLeftRight, FileText, Loader2, Receipt } from 'lucide-react'
 import Image from 'next/image'
 import Link from 'next/link'
+import { useSearchParams } from 'next/navigation'
+import { Suspense, useEffect, useState } from 'react'
 import { AppShell } from '@/components/shell/app-shell'
 import { PageHeader } from '@/components/shell/page-header'
 import { Badge } from '@/components/ui/badge'
@@ -42,6 +44,26 @@ function DashboardSkeleton() {
 }
 
 export default function DashboardPage() {
+  return (
+    <Suspense fallback={<DashboardSkeleton />}>
+      <DashboardContent />
+    </Suspense>
+  )
+}
+
+function DashboardContent() {
+  const searchParams = useSearchParams()
+  const [verifiedBanner, setVerifiedBanner] = useState(
+    searchParams.get('verified') === '1'
+  )
+
+  useEffect(() => {
+    if (!verifiedBanner) return
+    const url = new URL(window.location.href)
+    url.searchParams.delete('verified')
+    window.history.replaceState({}, '', url.pathname + url.search)
+  }, [verifiedBanner])
+
   const { data, isLoading, isError, error, refetch, isFetching } = useQuery({
     queryKey: ['overview'],
     queryFn: fetchOverview
@@ -52,6 +74,12 @@ export default function DashboardPage() {
   return (
     <AppShell userName={data?.fullName}>
       <PageHeader title="Dashboard" />
+
+      {verifiedBanner ? (
+        <p className="mb-4 rounded-lg bg-primary/10 px-3 py-2 text-center text-primary text-sm">
+          Email verified successfully. Welcome to Nova Bank!
+        </p>
+      ) : null}
 
       {isLoading ? (
         <DashboardSkeleton />

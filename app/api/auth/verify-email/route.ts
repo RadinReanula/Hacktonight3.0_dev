@@ -1,7 +1,14 @@
 import { NextResponse } from 'next/server'
+import { createSession } from '@/lib/auth'
+import { query, serviceFailure } from '@/lib/db'
 import { getAppBaseUrl } from '@/lib/email/config'
 import { verifyEmailToken } from '@/lib/email/verification'
-import { serviceFailure } from '@/lib/db'
+
+type VerifiedUserRow = {
+  id: number
+  username: string
+  role: string
+}
 
 export async function GET(request: Request) {
   try {
@@ -18,7 +25,23 @@ export async function GET(request: Request) {
       return NextResponse.redirect(`${baseUrl}/login?verify=invalid`)
     }
 
-    return NextResponse.redirect(`${baseUrl}/login?verified=1`)
+    const userResult = await query<VerifiedUserRow>(
+      `SELECT id, username, role FROM users
+       WHERE id = $1 AND email_verified = true`,
+      [result.userId]
+    )
+    const user = userResult.rows[0]
+    if (!user) {
+      return NextResponse.redirect(`${baseUrl}/login?verify=invalid`)
+    }
+
+    await createSession({
+      userId: user.id,
+      role: user.role,
+      username: user.username
+    })
+
+    return NextResponse.redirect(`${baseUrl}/dashboard?verified=1`)
   } catch (reason) {
     return serviceFailure(reason)
   }
